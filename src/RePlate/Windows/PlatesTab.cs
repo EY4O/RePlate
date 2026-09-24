@@ -245,13 +245,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         foreach (var preset in presets)
         {
             using var id = ImRaii.PushId(preset.Id.ToString());
-            if (preset.Favorite)
-            {
-                using (Plugin.PluginInterface.UiBuilder.IconFontHandle.Push())
-                using (ImRaii.PushColor(ImGuiCol.Text, Theme.AccentText))
-                    ImGui.TextUnformatted(FontAwesomeIcon.Star.ToIconString());
-                ImGui.SameLine();
-            }
+            if (preset.Favorite) DrawStar();
             if (ImGui.Selectable(preset.Name, preset.Id == selected)) Select(preset.Id);
             DrawListMenu(preset);
             var parts = (preset.Portrait != null ? "Portrait" : "") + (preset.Portrait != null && preset.Design != null ? " + " : "") +
@@ -260,6 +254,25 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
                 ImGui.TextDisabled($"{Names.Race(preset.Race, preset.Sex)} · {preset.UpdatedAt.ToLocalTime():MM-dd-yyyy} · {parts}" +
                                    (preset.Imported ? " · Shared" : ""));
         }
+    }
+
+    // A small star before a favourite's name, a little under the text's size and centred on the line.
+    private static void DrawStar()
+    {
+        const float Scale = 0.7f;
+        var start = ImGui.GetCursorScreenPos();
+        var line = ImGui.GetTextLineHeight();
+        var icon = FontAwesomeIcon.Star.ToIconString();
+        float width;
+        using (Plugin.PluginInterface.UiBuilder.IconFontHandle.Push())
+        {
+            width = ImGui.CalcTextSize(icon).X * Scale;
+            var size = ImGui.GetFontSize() * Scale;
+            ImGui.GetWindowDrawList().AddText(ImGui.GetFont(), size, start + new Vector2(0, (line - size) / 2),
+                ImGui.GetColorU32(Theme.AccentText), icon);
+        }
+        ImGui.Dummy(new Vector2(width, line));
+        ImGui.SameLine();
     }
 
     // Right-click a plate in the list.
