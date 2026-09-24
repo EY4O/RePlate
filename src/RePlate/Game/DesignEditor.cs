@@ -235,7 +235,7 @@ public sealed unsafe class DesignEditor
 
     private void Click(AtkUnitBase* addon, int param)
     {
-        if (!ClickButton(addon, param))
+        if (!Clicks.ButtonWithParam(addon, param))
         {
             Stop("A button in the design window wasn't available, so RePlate stopped. Nothing was saved.");
             return;
@@ -335,27 +335,4 @@ public sealed unsafe class DesignEditor
     }
 
     private static string Clean(string text) => new string(text.Where(c => !char.IsControl(c)).ToArray()).Trim();
-
-    /// <summary>Clicks the window's button whose own click event carries this number, as the game would.</summary>
-    private static bool ClickButton(AtkUnitBase* addon, int param)
-    {
-        for (var i = 0; i < addon->UldManager.NodeListCount; i++)
-        {
-            var node = addon->UldManager.NodeList[i];
-            var component = node == null ? null : node->GetAsAtkComponentNode();
-            if (component == null || component->Component == null || component->Component->GetComponentType() != ComponentType.Button)
-                continue;
-            var button = (AtkComponentButton*)component->Component;
-            for (var evt = node->AtkEventManager.Event; evt != null; evt = evt->NextEvent)
-            {
-                if (evt->State.EventType != AtkEventType.ButtonClick || evt->Param != param || evt->Listener == null) continue;
-                if (!button->IsEnabled) return false;
-                var copy = *evt;
-                var data = new AtkEventData();
-                evt->Listener->ReceiveEvent(AtkEventType.ButtonClick, param, &copy, &data);
-                return true;
-            }
-        }
-        return false;
-    }
 }

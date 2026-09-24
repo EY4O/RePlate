@@ -47,6 +47,7 @@ public sealed class Plugin : IDalamudPlugin
         Reader = new PlateReader();
         Editor = new PortraitEditor();
         Designs = new DesignEditor();
+        Restore = new PortraitRestore(Editor);
         images = new PlateImages(new ImageFiles(folder), () =>
         {
             var owner = CharacterId;
@@ -56,7 +57,7 @@ public sealed class Plugin : IDalamudPlugin
         MainWindow = new MainWindow(new PlatesTab(this, images));
         windows.AddWindow(MainWindow);
 
-        CommandManager.AddHandler(Command, new CommandInfo(OnCommand) { HelpMessage = "Open RePlate." });
+        CommandManager.AddHandler(Command, new CommandInfo(OnCommand) { HelpMessage = "Open RePlate. /replate stop stops a restore." });
         PluginInterface.UiBuilder.Draw += Draw;
         PluginInterface.UiBuilder.OpenMainUi += ToggleMainWindow;
         Framework.Update += OnUpdate;
@@ -67,6 +68,7 @@ public sealed class Plugin : IDalamudPlugin
     public PlateReader Reader { get; }
     public PortraitEditor Editor { get; }
     public DesignEditor Designs { get; }
+    public PortraitRestore Restore { get; }
     private MainWindow MainWindow { get; }
 
     /// <summary>The logged-in character's content id, or 0.</summary>
@@ -105,6 +107,7 @@ public sealed class Plugin : IDalamudPlugin
         images.Update();
         probe.Update();
         Designs.Update();
+        Restore.Update();
         if (dirtySince is { } since && DateTime.UtcNow - since >= SaveDelay)
         {
             dirtySince = null;
@@ -114,8 +117,25 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnCommand(string command, string args)
     {
-        if (args.Trim().Equals("probe", StringComparison.OrdinalIgnoreCase)) probe.Toggle();
-        else ToggleMainWindow();
+        switch (args.Trim().ToLowerInvariant())
+        {
+            case "probe":
+                probe.Toggle();
+                break;
+            case "stop":
+                StopAll("Stopped. Nothing more was changed.");
+                break;
+            default:
+                ToggleMainWindow();
+                break;
+        }
+    }
+
+    /// <summary>Stops whatever RePlate is doing in the game's windows.</summary>
+    public void StopAll(string message)
+    {
+        Designs.Stop(message);
+        Restore.Stop(message);
     }
 
     public void Dispose()

@@ -21,7 +21,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
     private Task<string?>? opening;
     private Task<ApplyResult>? applying;
     private Task<ApplyResult>? checking;
-    private Task<ApplyResult>? startingDesign;
+    private Task<ApplyResult>? starting;
     private PlatePreset? applied;
     private DateTime checkAt;
     private string newName = "";
@@ -46,7 +46,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
 
         FinishCapture(owner);
         FinishApply(owner);
-        FinishDesign();
+        FinishRuns();
         DrawToolbar();
         ImGui.Separator();
 
@@ -184,21 +184,31 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         applied = null;
     }
 
-    // The design goes in click by click over a few seconds; show how far it got, then the outcome.
-    private void FinishDesign()
+    // A design apply and a restore both run over a few seconds; show how far they got, then the outcome.
+    private void FinishRuns()
     {
-        if (startingDesign is { IsCompleted: true } start)
+        if (starting is { IsCompleted: true } start)
         {
-            startingDesign = null;
+            starting = null;
             if (!start.IsCompletedSuccessfully)
             {
-                SetStatus("Couldn't apply the design.", true);
-                Plugin.Log.Error(start.Exception!, "Starting the design failed");
+                SetStatus("Couldn't start.", true);
+                Plugin.Log.Error(start.Exception!, "Starting failed");
             }
             else if (!start.Result.Applied) SetStatus(start.Result.Message, true);
         }
         if (plugin.Designs.Running) SetStatus(plugin.Designs.Progress);
+        if (plugin.Restore.Running) SetStatus(plugin.Restore.Progress);
         if (plugin.Designs.TakeResult() is { } result) SetStatus(result.Message, !result.Clean);
+        if (plugin.Restore.TakeResult() is { } restored) SetStatus(restored.Message, !restored.Clean);
+    }
+
+    private bool Busy => plugin.Designs.Running || plugin.Restore.Running || starting != null || applying != null || applied != null;
+
+    private void StartRun(Func<ApplyResult> start, string status)
+    {
+        SetStatus(status);
+        starting = Plugin.Framework.RunOnFrameworkThread(start);
     }
 
     private void DrawList(List<PlatePreset> presets)
@@ -233,30 +243,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
 
         DrawHeader(preset);
         ImGui.Spacing();
-        using (ImRaii.Disabled(preset.Portrait == null || applying != null || applied != null))
-        {
-            if (Theme.PrimaryButton("Apply portrait")) StartApply(preset);
-        }
-        Ui.TipAlways("Puts this portrait into Edit Portrait. Open it from your adventurer plate first, then press Save there when it looks right.");
-        ImGui.SameLine();
-        if (plugin.Designs.Running)
-        {
-            if (Theme.DangerButton("Stop"))
-                Plugin.Framework.RunOnFrameworkThread(() => plugin.Designs.Stop("Stopped. Nothing was saved; close the window without saving to undo."));
-        }
-        else
-        {
-            using (ImRaii.Disabled(preset.Design == null || startingDesign != null))
-            {
-                if (Theme.PrimaryButton("Apply design"))
-                {
-                    var owner = plugin.CharacterId;
-                    SetStatus("Applying the design...");
-                    startingDesign = Plugin.Framework.RunOnFrameworkThread(() => plugin.Designs.Start(preset, owner));
-                }
-            }
-            Ui.TipAlways("Picks this design in Edit Plate Design, one list at a time. Open it from your adventurer plate first, then press Save there when it looks right.");
-        }
+        DrawActions(preset);
         ImGui.Spacing();
         using (var table = ImRaii.Table("##summary", 2, ImGuiTableFlags.SizingStretchSame))
         {
@@ -270,6 +257,40 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         }
         ImGui.Separator();
         images.Draw(plugin.Store.CanWrite);
+    }
+
+    private void DrawActions(PlatePreset preset)
+    {
+        var owner = plugin.CharacterId;
+        if (plugin.Designs.Running || plugin.Restore.Running)
+        {
+            if (Theme.DangerButton("Stop"))
+                Plugin.Framework.RunOnFrameworkThread(() => plugin.StopAll("Stopped. Anything not saved yet can be undone by closing the editor without saving."));
+            return;
+        }
+
+        using (ImRaii.Disabled(Busy))
+        {
+            using (ImRaii.Disabled(preset.Portrait == null))
+            {
+                if (Theme.PrimaryButton("Restore portrait"))
+                    StartRun(() => plugin.Restore.Start(preset, owner), "Restoring the portrait...");
+            }
+            Ui.TipAlways("Opens Edit Portrait from your plate, puts this portrait in, checks it and saves it.");
+            ImGui.SameLine();
+            using (ImRaii.Disabled(preset.Portrait == null))
+            {
+                if (ImGui.Button("Apply portrait")) StartApply(preset);
+            }
+            Ui.TipAlways("Puts this portrait into Edit Portrait without saving. Open it from your adventurer plate first, then press Save there when it looks right.");
+            ImGui.SameLine();
+            using (ImRaii.Disabled(preset.Design == null))
+            {
+                if (ImGui.Button("Apply design"))
+                    StartRun(() => plugin.Designs.Start(preset, owner), "Applying the design...");
+            }
+            Ui.TipAlways("Picks this design in Edit Plate Design without saving. Open it from your adventurer plate first, then press Save there when it looks right.");
+        }
     }
 
     private void DrawHeader(PlatePreset preset)

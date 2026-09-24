@@ -112,7 +112,7 @@ public sealed unsafe class PortraitEditor
         return background < 0 || frame < 0 || accent < 0 ? -1 : s->GetPresetIndex((ushort)background, (ushort)frame, (ushort)accent);
     }
 
-    private static string? GetEditor(ulong owner, out AgentBannerEditorState* state, out AddonBannerEditor* editor)
+    internal static string? GetEditor(ulong owner, out AgentBannerEditorState* state, out AddonBannerEditor* editor)
     {
         state = null;
         editor = null;
