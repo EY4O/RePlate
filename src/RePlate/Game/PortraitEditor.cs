@@ -22,6 +22,9 @@ public sealed unsafe class PortraitEditor
     private static readonly string[] ListParts = ["background", "frame", "accent", "pose", "expression"];
 
     private bool refreshPlayCheckbox;
+    // What the last Apply actually put in (a shared plate keeps your choice for anything locked), and a note saying so.
+    private PortraitSettings? target;
+    private string kept = "";
 
     public ApplyResult Apply(PlatePreset preset, ulong owner)
     {
@@ -29,14 +32,23 @@ public sealed unsafe class PortraitEditor
         var problem = GetEditor(owner, out var state, out var addon);
         if (problem != null) return new(false, problem);
 
-        problem = CheckUnlocked(state, portrait);
-        if (problem != null) return new(false, problem);
-
-        // Only refresh the controls that show the current values correctly; the rest are left for the player to see.
         var view = state->CharaView;
         ExportedPortraitData before;
         view->ExportPortraitData(&before);
         var current = PortraitData.FromGame(before, before.BannerBg, state->BannerEntry.BannerFrame, state->BannerEntry.BannerDecoration);
+
+        var missing = Unavailable(state, portrait);
+        kept = "";
+        if (!preset.Imported && Refusal(missing, portrait) is { } refusal) return new(false, refusal);
+        if (missing.Count > 0)
+        {
+            kept = " Kept yours for: " + string.Join(", ", missing.Select(m =>
+                $"{ListParts[m.List]} {Name(m.List, ListIds(portrait)[m.List])} ({(m.OtherJob ? "another job's" : "not unlocked")})")) + ".";
+            portrait = KeepYours(portrait, current, missing);
+        }
+        target = portrait;
+
+        // Only refresh the controls that show the current values correctly; the rest are left for the player to see.
         var sliders = Sliders(addon);
         var currentValues = SliderValues(current);
         var sliderOk = new bool[sliders.Length];
@@ -76,7 +88,7 @@ public sealed unsafe class PortraitEditor
     /// <summary>Reads the editor back once the pose has settled.</summary>
     public ApplyResult Verify(PlatePreset preset, ulong owner)
     {
-        if (preset.Portrait is not { } portrait) return new(false, "This plate has no portrait.");
+        if ((target ?? preset.Portrait) is not { } portrait) return new(false, "This plate has no portrait.");
         var problem = GetEditor(owner, out var state, out var addon);
         if (problem != null) return new(false, "Edit Portrait closed before it could be checked.");
 
@@ -94,8 +106,8 @@ public sealed unsafe class PortraitEditor
         var result = differences.Count > 0
             ? new ApplyResult(false, $"Some parts didn't take: {string.Join(", ", differences)}. Nothing was saved; press Cancel in the editor to undo.")
             : error != CharaViewPortrait.PortraitError.None
-                ? new ApplyResult(true, $"Applied, but the game warns that {Warning(error)}. Adjust it before saving, or press Cancel.")
-                : new ApplyResult(true, "Applied. Look it over and press Save in the editor.", true);
+                ? new ApplyResult(true, $"Applied, but the game warns that {Warning(error)}. Adjust it before saving, or press Cancel.{kept}")
+                : new ApplyResult(true, $"Applied. Look it over and press Save in the editor.{kept}", kept.Length == 0);
         Plugin.Log.Information($"Applied \"{preset.Name}\": {result.Message}");
         return result;
     }
@@ -134,21 +146,45 @@ public sealed unsafe class PortraitEditor
 
     private static uint[] ListIds(PortraitSettings p) => [p.Background, p.Frame, p.Accent, p.Pose, p.Expression];
 
-    private static string? CheckUnlocked(AgentBannerEditorState* state, PortraitSettings portrait)
+    // The lists (background, frame, accent, pose, expression) whose saved choice this character can't pick, and why.
+    private static List<(int List, bool OtherJob)> Unavailable(AgentBannerEditorState* state, PortraitSettings portrait)
     {
         var sets = Datasets(state);
         var ids = ListIds(portrait);
-        var locked = new List<string>();
+        var result = new List<(int, bool)>();
         for (var i = 0; i < sets.Length; i++)
         {
             // Zero means none, which the lists don't carry.
             if (ids[i] == 0) continue;
             var entry = Find(sets[i], ids[i]);
-            if (entry == null) locked.Add($"{ListParts[i]} {Name(i, ids[i])}");
-            else if (i == 3 && !entry->ClassJobMatches)
-                return $"The pose {Names.Pose(portrait.Pose)} belongs to another job. Change job and try again.";
+            if (entry == null) result.Add((i, false));
+            else if (i == 3 && !entry->ClassJobMatches) result.Add((i, true));
         }
-        return locked.Count > 0 ? $"Not unlocked on this character: {string.Join(", ", locked)}." : null;
+        return result;
+    }
+
+    // Your own plates are refused when something's missing; a shared one keeps your choice for it instead.
+    private static string? Refusal(List<(int List, bool OtherJob)> missing, PortraitSettings portrait)
+    {
+        if (missing.FirstOrDefault(m => m.OtherJob) is { OtherJob: true })
+            return $"The pose {Names.Pose(portrait.Pose)} belongs to another job. Change job and try again.";
+        return missing.Count > 0
+            ? $"Not unlocked on this character: {string.Join(", ", missing.Select(m => $"{ListParts[m.List]} {Name(m.List, ListIds(portrait)[m.List])}"))}."
+            : null;
+    }
+
+    private static PortraitSettings KeepYours(PortraitSettings shared, PortraitSettings yours, List<(int List, bool OtherJob)> missing)
+    {
+        foreach (var (list, _) in missing)
+            shared = list switch
+            {
+                0 => shared with { Background = yours.Background },
+                1 => shared with { Frame = yours.Frame },
+                2 => shared with { Accent = yours.Accent },
+                3 => shared with { Pose = yours.Pose, AnimationProgress = yours.AnimationProgress },
+                _ => shared with { Expression = yours.Expression },
+            };
+        return shared;
     }
 
     private static string Name(int list, uint id) => list switch

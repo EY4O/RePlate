@@ -69,6 +69,12 @@ public sealed class PlatePreset
     public PortraitSettings? Portrait { get; set; }
     public PlateDesign? Design { get; set; }
 
+    /// <summary>
+    /// Came from someone's share code. Restoring one fills in what this character has, keeps their own choice for
+    /// anything locked, and always stops before Save so the player can look it over.
+    /// </summary>
+    public bool Imported { get; set; }
+
     public static string CleanName(string name)
     {
         var trimmed = new string(name.Select(c => char.IsControl(c) ? ' ' : c).ToArray()).Trim();

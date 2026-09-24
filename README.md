@@ -13,6 +13,8 @@ Keep copies of your adventurer plate and put any of them back in one click, afte
 - **Restore:** puts the portrait and design back through the plate's own editors, checks the result and saves it.
   Parts that already match are skipped, and anything not unlocked on the character is named.
 - **Apply without saving:** fill Edit Portrait or Edit Plate Design with a saved plate and finish it yourself.
+- **Share:** copy a plate as a short code and import other players' codes. Anything your character hasn't unlocked
+  keeps your own choice, and restoring a shared plate stops before saving so you can look it over.
 - **Pictures:** capture and crop the game view, or attach a PNG, so plates are easy to tell apart.
 
 ## Installation

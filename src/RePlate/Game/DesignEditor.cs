@@ -39,6 +39,9 @@ public sealed unsafe class DesignEditor
     private ulong owner;
     private int[] tried = new int[Parts.Length];
     private bool[] arrowsOnly = new bool[Parts.Length];
+    // A shared plate's parts this character doesn't have: left as they are, and named in the result.
+    private bool[] keepYours = new bool[Parts.Length];
+    private string kept = "";
     private int pickerPart = -1;
     private bool picked;
     private DateTime openedAt;
@@ -79,9 +82,14 @@ public sealed unsafe class DesignEditor
             var list = List(addon, Parts[i]);
             if (list == null || Label(list, i, SelectedRow(addon, Parts[i])) != NameOf(i, current[i]))
                 return new(false, "The design window isn't laid out the way RePlate expects, so nothing was changed.");
-            if (Rows(list, i, wanted[i]).Count == 0) locked.Add($"{Parts[i].Name} {NameOf(i, wanted[i])}");
+            if (Rows(list, i, wanted[i]).Count == 0) locked.Add($"{Parts[i].Name} {Title(i, wanted[i])}");
         }
-        if (locked.Count > 0) return new(false, $"Not unlocked on this character: {string.Join(", ", locked)}.");
+        // Your own plates are refused when something's missing; a shared one keeps your choice for it instead.
+        if (locked.Count > 0 && !preset.Imported) return new(false, $"Not unlocked on this character: {string.Join(", ", locked)}.");
+        keepYours = new bool[Parts.Length];
+        for (var i = 0; i < Parts.Length; i++)
+            keepYours[i] = Rows(List(addon, Parts[i]), i, wanted[i]).Count == 0;
+        kept = locked.Count > 0 ? $" Kept yours for: {string.Join(", ", locked)} (not unlocked)." : "";
 
         target = design;
         this.owner = owner;
@@ -127,7 +135,7 @@ public sealed unsafe class DesignEditor
 
         for (var i = 0; i < Parts.Length; i++)
         {
-            if (current[i] == wanted[i]) continue;
+            if (current[i] == wanted[i] || keepYours[i]) continue;
             var list = List(addon, Parts[i]);
             var rows = list == null ? [] : Rows(list, i, wanted[i]);
             if (tried[i] >= rows.Count)
@@ -160,10 +168,10 @@ public sealed unsafe class DesignEditor
             return;
         }
 
-        var name = string.Join(", ", Parts.Where((_, i) => current[i] != wanted[i]).Select(p => p.Name));
+        var name = string.Join(", ", Parts.Where((_, i) => current[i] != wanted[i] && !keepYours[i]).Select(p => p.Name));
         Finish(name.Length > 0
             ? new ApplyResult(false, $"Some parts didn't take: {name}. Nothing was saved; close without saving to undo.")
-            : new ApplyResult(true, "Design applied. Look it over and press Save in Edit Plate Design.", true));
+            : new ApplyResult(true, $"Design applied. Look it over and press Save in Edit Plate Design.{kept}", kept.Length == 0));
     }
 
     // The part's picker lists every item, greyed out when you don't have it, in the same order as its dropdown. So the
@@ -303,6 +311,9 @@ public sealed unsafe class DesignEditor
     private const string None = "(none)";
 
     // The item's name as the window lists it.
+    // For messages: the item's name, or its number when this game doesn't know it (possible with a shared code).
+    private static string Title(int part, uint id) => NameOf(part, id) is { } name && name != None ? name : id == 0 ? "None" : $"#{id}";
+
     private static string? NameOf(int part, uint id)
     {
         if (id == 0) return part == 0 ? null : None;

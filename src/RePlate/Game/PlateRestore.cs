@@ -31,6 +31,10 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
     private readonly Queue<PlatePart> parts = new();
     private readonly List<string> done = [];
     private readonly List<string> matched = [];
+    // Parts left in an editor for the player to review, with what the plate had saved before; once that changes,
+    // the player has saved, and the next Restore moves on to the other part.
+    private readonly Dictionary<(Guid, PlatePart), string> reviewed = [];
+    private string? savedBefore;
     private PlatePreset? preset;
     private ulong owner;
     private PlatePart part;
@@ -176,19 +180,24 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
     // The plate's edit menu lists Edit Portrait first and Edit Plate Design second.
     private void OpenEditor()
     {
+        savedBefore = null;
         if (Visible(Window))
         {
             Go(Step.WaitEditor);
             return;
         }
-        // Nothing to do when the plate already has it.
-        if (Kept() is { Count: 0 })
+        // Nothing to do when the plate already has it, or when it was put in for review and has been saved since.
+        var key = (preset!.Id, part);
+        if (Kept() is { Count: 0 } || reviewed.TryGetValue(key, out var before) && Fingerprint() is { } now && now != before)
         {
-            Plugin.Log.Information($"The {Name} already matches \"{preset!.Name}\".");
+            Plugin.Log.Information($"The {Name} is already done for \"{preset.Name}\".");
+            reviewed.Remove(key);
             matched.Add(Name);
             NextOrFinish();
             return;
         }
+        // What the plate has saved now, before the editor starts changing it.
+        savedBefore = Fingerprint();
         var menu = Addon("CharaCardEditMenu");
         if (menu == null) return;
         var list = Clicks.FirstList(menu);
@@ -223,7 +232,7 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
         if (part == PlatePart.Portrait)
         {
             check = portraits.Verify(preset!, owner);
-            if (!check.Clean && !reapplied)
+            if (!check.Applied && !reapplied)
             {
                 // A freshly opened editor can still be settling its camera; put the portrait in once more.
                 reapplied = true;
@@ -236,16 +245,22 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
             if (designs.Running) return;
             check = designs.Last ?? new ApplyResult(false, "The design didn't finish.");
         }
-        if (!check.Clean)
+        if (!check.Applied)
         {
             Stop($"{check.Message} {Editor} is left open; nothing was saved.");
             return;
         }
-        if (pauseBeforeSave())
+        // Shared plates always stop here so the player has the last look; so do your own with the setting on.
+        if (pauseBeforeSave() || preset!.Imported)
         {
-            // Restore again after saving: this part will match by then and the next one follows.
+            if (savedBefore != null) reviewed[(preset!.Id, part)] = savedBefore;
             var rest = parts.Count > 0 ? " Once it's saved, press Restore again for the design." : "";
-            Finish(new ApplyResult(true, $"The {Name} is in {Editor}. Look it over and press Save there.{rest}", true));
+            Finish(new ApplyResult(true, $"{check.Message}{rest}", false));
+            return;
+        }
+        if (!check.Clean)
+        {
+            Stop($"{check.Message} {Editor} is left open; nothing was saved.");
             return;
         }
         Go(Step.Save);
@@ -311,6 +326,19 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
 
     // What your plate keeps, compared with the preset; null while it can't be read. With the design editor open the
     // plate shows its unsaved picks, so this is only asked when the part's editor is closed.
+    // What the plate has saved for this part, as text, to notice when the player saves after a review.
+    private string? Fingerprint()
+    {
+        if (PlateReader.GetOwnCard(owner, out var card) != null) return null;
+        if (part == PlatePart.Portrait)
+            return System.Text.Json.JsonSerializer.Serialize(
+                PortraitData.FromGame(card->PortraitData, card->BannerBg, card->BannerFrame, card->BannerDecoration));
+        var d = card->PlateDesign;
+        var decorations = new List<ushort>();
+        for (var i = 0; i < d.NumDecorations && i < d.Decorations.Length; i++) decorations.Add(d.Decorations[i]);
+        return $"{d.BasePlate}/{d.TopBorder}/{d.BottomBorder}/{string.Join(",", decorations)}/{card->InvertPortraitPlacement}";
+    }
+
     private List<string>? Kept()
     {
         if (PlateReader.GetOwnCard(owner, out var card) != null) return null;

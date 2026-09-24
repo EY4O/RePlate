@@ -17,7 +17,12 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
     // Long enough for the pose to load before the editor is read back.
     private static readonly TimeSpan CheckDelay = TimeSpan.FromSeconds(1);
 
+    private const string ImportPopup = "Import a shared plate###replateImport";
+
     private Task<CaptureResult>? capturing;
+    private string importCode = "";
+    private string importProblem = "";
+    private SharedPlate? importPreview;
     private Task<string?>? opening;
     private Task<ApplyResult>? applying;
     private Task<ApplyResult>? checking;
@@ -50,6 +55,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         plugin.Guide.Update(PlateReader.OwnPlateOpen(owner), store.For(owner).Count, images, plugin.Restore.Running);
         plugin.Guide.DrawBar();
         DrawToolbar();
+        DrawImport(owner);
         ImGui.Separator();
 
         var presets = store.For(owner)
@@ -91,6 +97,15 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
             }
             plugin.Guide.Mark(GuideTarget.OpenPlate);
         }
+        ImGui.SameLine();
+        if (ImGui.Button("Import"))
+        {
+            importCode = "";
+            importPreview = null;
+            importProblem = "";
+            ImGui.OpenPopup(ImportPopup);
+        }
+        Ui.Tip("Add a plate someone shared with you, from its share code.");
         if (status.Length > 0)
         {
             ImGui.SameLine();
@@ -233,7 +248,8 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
             var parts = (preset.Portrait != null ? "Portrait" : "") + (preset.Portrait != null && preset.Design != null ? " + " : "") +
                         (preset.Design != null ? "Design" : "");
             using (ImRaii.PushIndent())
-                ImGui.TextDisabled($"{Names.Race(preset.Race, preset.Sex)} · {preset.UpdatedAt.ToLocalTime():MM-dd-yyyy} · {parts}");
+                ImGui.TextDisabled($"{Names.Race(preset.Race, preset.Sex)} · {preset.UpdatedAt.ToLocalTime():MM-dd-yyyy} · {parts}" +
+                                   (preset.Imported ? " · Shared" : ""));
         }
     }
 
@@ -327,6 +343,14 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
                 confirmDelete = false;
             }
             ImGui.SameLine();
+            if (ImGui.SmallButton("Share"))
+            {
+                ImGui.SetClipboardText(ShareCode.Encode(preset));
+                SetStatus("Share code copied. Paste it wherever you like.");
+            }
+            Ui.Tip("Copies a code anyone with RePlate can import. It holds this plate's portrait and design, " +
+                   "not who you are, and not its picture.");
+            ImGui.SameLine();
             if (!confirmDelete)
             {
                 if (Theme.DangerButton("Delete")) confirmDelete = true;
@@ -348,7 +372,72 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
                 if (ImGui.SmallButton("Keep")) confirmDelete = false;
             }
         }
-        ImGui.TextDisabled($"{Names.Race(preset.Race, preset.Sex)} - Created {preset.CreatedAt.ToLocalTime():MM-dd-yyyy}");
+        ImGui.TextDisabled(preset.Imported
+            ? $"Shared, made on {Names.Race(preset.Race, preset.Sex)} - Added {preset.CreatedAt.ToLocalTime():MM-dd-yyyy}"
+            : $"{Names.Race(preset.Race, preset.Sex)} - Created {preset.CreatedAt.ToLocalTime():MM-dd-yyyy}");
+    }
+
+    // Paste a code, see what it holds, add it as one of this character's plates.
+    private void DrawImport(ulong owner)
+    {
+        var scale = ImGuiHelpers.GlobalScale;
+        ImGui.SetNextWindowSize(new Vector2(600, 0) * scale, ImGuiCond.Appearing);
+        if (!ImGui.BeginPopupModal(ImportPopup, ImGuiWindowFlags.AlwaysAutoResize)) return;
+
+        ImGui.TextUnformatted("Paste a RePlate share code:");
+        if (ImGui.InputTextMultiline("##code", ref importCode, 5000, new Vector2(560 * scale, 70 * scale)))
+            ReadImport();
+        if (ImGui.Button("Paste from clipboard"))
+        {
+            importCode = ImGui.GetClipboardText() ?? "";
+            ReadImport();
+        }
+        if (importProblem.Length > 0) ImGui.TextColored(Theme.Warning, importProblem);
+
+        if (importPreview is { } shared)
+        {
+            ImGui.Spacing();
+            using (ImRaii.PushColor(ImGuiCol.Text, Theme.AccentText)) ImGui.TextUnformatted(shared.Name.Length > 0 ? shared.Name : "Shared plate");
+            if (Names.Race(shared.Race, shared.Sex) is { Length: > 0 } race) ImGui.TextDisabled($"Made on {race}");
+            using (var table = ImRaii.Table("##preview", 2, ImGuiTableFlags.SizingStretchSame))
+            {
+                if (table.Success)
+                {
+                    ImGui.TableNextColumn();
+                    DrawPortrait(shared.Portrait);
+                    ImGui.TableNextColumn();
+                    DrawDesign(shared.Design);
+                }
+            }
+            ImGui.Spacing();
+            using (ImRaii.PushColor(ImGuiCol.Text, Theme.Muted))
+                ImGui.TextWrapped("Anything this character hasn't unlocked keeps your own choice. Restore stops before saving " +
+                                  "so you can look it over; on a different race the camera may need a nudge.");
+        }
+
+        ImGui.Separator();
+        using (ImRaii.Disabled(importPreview == null || !plugin.Store.CanWrite))
+        {
+            if (Theme.PrimaryButton("Add to my plates") && importPreview != null)
+            {
+                var preset = ShareCode.ToPreset(importPreview, owner);
+                plugin.Store.Add(preset);
+                plugin.Store.Save();
+                filter = "";
+                Select(preset.Id);
+                SetStatus($"Added \"{preset.Name}\".");
+                ImGui.CloseCurrentPopup();
+            }
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("Cancel")) ImGui.CloseCurrentPopup();
+        ImGui.EndPopup();
+    }
+
+    private void ReadImport()
+    {
+        importPreview = importCode.Trim().Length == 0 ? null : ShareCode.Decode(importCode, out importProblem);
+        if (importCode.Trim().Length == 0) importProblem = "";
     }
 
     private static void DrawPortrait(PortraitSettings? portrait)
