@@ -31,9 +31,15 @@ public sealed unsafe class DesignEditor
 
     private sealed record Part(string Name, uint Dropdown, byte Kind);
 
+    // Picking from an open list: open it, click the row, then check the part changed.
+    private enum Pick { None, Opened, Clicked }
+
     private PlateDesign? target;
     private ulong owner;
     private int[] tried = new int[Parts.Length];
+    private bool[] arrowsOnly = new bool[Parts.Length];
+    private Pick pick;
+    private int pickRow;
     private bool flipped;
     private int clicks;
     private DateTime nextClick;
@@ -74,6 +80,8 @@ public sealed unsafe class DesignEditor
         target = design;
         this.owner = owner;
         tried = new int[Parts.Length];
+        arrowsOnly = new bool[Parts.Length];
+        pick = Pick.None;
         flipped = false;
         clicks = 0;
         nextClick = DateTime.UtcNow;
@@ -102,7 +110,11 @@ public sealed unsafe class DesignEditor
         var current = Ids(card);
         for (var i = 0; i < Parts.Length; i++)
         {
-            if (current[i] == wanted[i]) continue;
+            if (current[i] == wanted[i])
+            {
+                pick = Pick.None;
+                continue;
+            }
             var list = List(addon, Parts[i]);
             var rows = list == null ? [] : Rows(list, i, wanted[i]);
             if (tried[i] >= rows.Count)
@@ -110,8 +122,13 @@ public sealed unsafe class DesignEditor
                 Stop($"Couldn't pick the {Parts[i].Name}. Nothing was saved; close the window without saving to undo.");
                 return;
             }
-            // Two items can share a name: if we're on the row and it's the wrong one, go on to the next match.
             var row = SelectedRow(addon, Parts[i]);
+            if (!arrowsOnly[i])
+            {
+                PickFromList(addon, i, row, rows[tried[i]]);
+                return;
+            }
+            // Two items can share a name: if we're on the row and it's the wrong one, go on to the next match.
             if (row == rows[tried[i]]) tried[i]++;
             if (tried[i] >= rows.Count) continue;
             Click(addon, rows[tried[i]] > row ? i + 10 : i + 1);
@@ -134,6 +151,81 @@ public sealed unsafe class DesignEditor
         Finish(name.Length > 0
             ? new ApplyResult(false, $"Some parts didn't take: {name}. Nothing was saved; close without saving to undo.")
             : new ApplyResult(true, "Design applied. Look it over and press Save in Edit Plate Design.", true));
+    }
+
+    // Open the part's list with its own button, click the row, then look. If any step doesn't take, that part goes
+    // back to the arrows, which are known to work.
+    private void PickFromList(AtkUnitBase* addon, int part, int selected, int row)
+    {
+        var dropdown = Dropdown(addon, Parts[part]);
+        if (dropdown == null || dropdown->Checkbox == null || dropdown->List == null)
+        {
+            UseArrows(part, "the list wasn't found");
+            return;
+        }
+        switch (pick)
+        {
+            case Pick.None:
+                if (!OpenList(addon, dropdown))
+                {
+                    UseArrows(part, "its list button has no click of its own");
+                    return;
+                }
+                pick = Pick.Opened;
+                Wait(TimeSpan.FromMilliseconds(150));
+                return;
+            case Pick.Opened:
+                if (!dropdown->IsOpen)
+                {
+                    UseArrows(part, "the list didn't open");
+                    return;
+                }
+                pickRow = row;
+                dropdown->List->DispatchItemEvent(row, AtkEventType.ListItemClick);
+                pick = Pick.Clicked;
+                Wait(ClickGap);
+                return;
+            default:
+                pick = Pick.None;
+                // On the row but still the wrong item: another item has the same name, so try the next one.
+                if (selected == pickRow) tried[part]++;
+                else
+                {
+                    if (dropdown->IsOpen) OpenList(addon, dropdown);
+                    UseArrows(part, "the pick didn't take");
+                }
+                return;
+        }
+    }
+
+    // Toggles the list with its own button. Only when the list handles that click itself: if the window did, the
+    // click could carry a number the window also uses for something else.
+    private static bool OpenList(AtkUnitBase* addon, AtkComponentDropDownList* dropdown)
+    {
+        var button = &dropdown->Checkbox->AtkComponentButton;
+        if (!button->IsEnabled || button->OwnerNode == null) return false;
+        for (var evt = button->OwnerNode->AtkResNode.AtkEventManager.Event; evt != null; evt = evt->NextEvent)
+        {
+            if (evt->State.EventType != AtkEventType.ButtonClick || evt->Listener == null || (nint)evt->Listener == (nint)addon) continue;
+            var copy = *evt;
+            var data = new AtkEventData();
+            evt->Listener->ReceiveEvent(AtkEventType.ButtonClick, (int)evt->Param, &copy, &data);
+            return true;
+        }
+        return false;
+    }
+
+    private void UseArrows(int part, string why)
+    {
+        Plugin.Log.Information($"Picking the {Parts[part].Name} from its list didn't work ({why}); using the arrows.");
+        arrowsOnly[part] = true;
+        pick = Pick.None;
+    }
+
+    private void Wait(TimeSpan gap)
+    {
+        clicks++;
+        nextClick = DateTime.UtcNow + gap;
     }
 
     private void Finish(ApplyResult result)
@@ -255,16 +347,31 @@ public sealed unsafe class DesignEditor
             var component = node == null ? null : node->GetAsAtkComponentNode();
             if (component == null || component->Component == null || component->Component->GetComponentType() != ComponentType.Button)
                 continue;
-            var button = (AtkComponentButton*)component->Component;
-            for (var evt = node->AtkEventManager.Event; evt != null; evt = evt->NextEvent)
-            {
-                if (evt->State.EventType != AtkEventType.ButtonClick || evt->Param != param || evt->Listener == null) continue;
-                if (!button->IsEnabled) return false;
-                var copy = *evt;
-                var data = new AtkEventData();
-                evt->Listener->ReceiveEvent(AtkEventType.ButtonClick, param, &copy, &data);
+            if (HasClick(node, param)) return ClickOwn((AtkComponentButton*)component->Component, param);
+        }
+        return false;
+    }
+
+    private static bool HasClick(AtkResNode* node, int param)
+    {
+        for (var evt = node->AtkEventManager.Event; evt != null; evt = evt->NextEvent)
+            if (evt->State.EventType == AtkEventType.ButtonClick && evt->Listener != null && evt->Param == param)
                 return true;
-            }
+        return false;
+    }
+
+    // Sends the button's own registered click to whoever listens for it.
+    private static bool ClickOwn(AtkComponentButton* button, int param)
+    {
+        if (button == null || !button->IsEnabled || button->OwnerNode == null) return false;
+        var node = &button->OwnerNode->AtkResNode;
+        for (var evt = node->AtkEventManager.Event; evt != null; evt = evt->NextEvent)
+        {
+            if (evt->State.EventType != AtkEventType.ButtonClick || evt->Listener == null || evt->Param != param) continue;
+            var copy = *evt;
+            var data = new AtkEventData();
+            evt->Listener->ReceiveEvent(AtkEventType.ButtonClick, (int)evt->Param, &copy, &data);
+            return true;
         }
         return false;
     }
