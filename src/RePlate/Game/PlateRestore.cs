@@ -29,7 +29,8 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
     private static readonly TimeSpan SettleTime = TimeSpan.FromSeconds(1);
 
     private readonly Queue<PlatePart> parts = new();
-    private PlatePart[] requested = [];
+    private readonly List<string> done = [];
+    private readonly List<string> matched = [];
     private PlatePreset? preset;
     private ulong owner;
     private PlatePart part;
@@ -66,19 +67,23 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
         return result;
     }
 
-    public ApplyResult Start(PlatePreset preset, ulong owner, params PlatePart[] what)
+    /// <summary>Restores whatever the preset has: the portrait, then the design.</summary>
+    public ApplyResult Start(PlatePreset preset, ulong owner)
     {
         if (Running) return new(false, "Already restoring.");
         if (preset.Owner != owner) return new(false, "That plate belongs to another character.");
-        if (what.Contains(PlatePart.Portrait) && preset.Portrait == null) return new(false, "This plate has no portrait to restore.");
-        if (what.Contains(PlatePart.Design) && preset.Design == null) return new(false, "This plate has no design to restore.");
+        var what = new List<PlatePart>();
+        if (preset.Portrait != null) what.Add(PlatePart.Portrait);
+        if (preset.Design != null) what.Add(PlatePart.Design);
+        if (what.Count == 0) return new(false, "This plate has nothing saved to restore.");
         if (Visible("SelectYesno") || Visible("SelectOk")) return new(false, "Answer the open dialog first.");
         if (Visible(PortraitWindow) && Visible(DesignWindow)) return new(false, "Close Edit Portrait or Edit Plate Design first.");
 
         this.preset = preset;
         this.owner = owner;
         finished = null;
-        requested = what;
+        done.Clear();
+        matched.Clear();
         parts.Clear();
         foreach (var p in what) parts.Enqueue(p);
         NextPart(Step.OpenPlate);
@@ -174,6 +179,14 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
         if (Visible(Window))
         {
             Go(Step.WaitEditor);
+            return;
+        }
+        // Nothing to do when the plate already has it.
+        if (Kept() is { Count: 0 })
+        {
+            Plugin.Log.Information($"The {Name} already matches \"{preset!.Name}\".");
+            matched.Add(Name);
+            NextOrFinish();
             return;
         }
         var menu = Addon("CharaCardEditMenu");
@@ -275,28 +288,46 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
         Go(Step.WaitClose);
     }
 
-    // What your plate now keeps, compared with the preset.
     private void Confirm()
     {
-        if (PlateReader.GetOwnCard(owner, out var card) != null) return;
-        List<string> differences;
-        if (part == PlatePart.Portrait)
-        {
-            if (card->IsNotCreated) return;
-            var saved = PortraitData.FromGame(card->PortraitData, card->BannerBg, card->BannerFrame, card->BannerDecoration);
-            differences = PortraitCheck.Differences(preset!.Portrait!, saved);
-        }
-        else differences = DesignEditor.Differences(card, preset!.Design!);
-
+        var differences = Kept();
+        if (differences == null) return;
         if (differences.Count > 0)
         {
             mismatch = ": " + string.Join(", ", differences);
             return;
         }
-        Plugin.Log.Information($"The {Name} from \"{preset.Name}\" is saved.");
-        if (parts.Count > 0) NextPart(Step.OpenEditor);
-        else Finish(new ApplyResult(true, requested.Length > 1 ? "Portrait and design restored and saved." :
-            part == PlatePart.Portrait ? "Portrait restored and saved." : "Design restored and saved.", true));
+        Plugin.Log.Information($"The {Name} from \"{preset!.Name}\" is saved.");
+        done.Add(Name);
+        NextOrFinish();
+    }
+
+    // What your plate keeps, compared with the preset; null while it can't be read. With the design editor open the
+    // plate shows its unsaved picks, so this is only asked when the part's editor is closed.
+    private List<string>? Kept()
+    {
+        if (PlateReader.GetOwnCard(owner, out var card) != null) return null;
+        if (part == PlatePart.Design) return DesignEditor.Differences(card, preset!.Design!);
+        if (card->IsNotCreated || card->WasResetDueToFantasia) return ["portrait"];
+        var saved = PortraitData.FromGame(card->PortraitData, card->BannerBg, card->BannerFrame, card->BannerDecoration);
+        return PortraitCheck.Differences(preset!.Portrait!, saved);
+    }
+
+    private void NextOrFinish()
+    {
+        if (parts.Count > 0)
+        {
+            NextPart(Step.OpenEditor);
+            return;
+        }
+        var message = done.Count switch
+        {
+            0 => "Your plate already matches this one.",
+            2 => "Portrait and design restored and saved.",
+            _ => $"{char.ToUpperInvariant(done[0][0])}{done[0][1..]} restored and saved" +
+                 (matched.Count > 0 ? $"; the {matched[0]} already matched." : "."),
+        };
+        Finish(new ApplyResult(true, message, true));
     }
 
     private void NextPart(Step first)

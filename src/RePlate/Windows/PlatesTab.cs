@@ -229,7 +229,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
             var parts = (preset.Portrait != null ? "Portrait" : "") + (preset.Portrait != null && preset.Design != null ? " + " : "") +
                         (preset.Design != null ? "Design" : "");
             using (ImRaii.PushIndent())
-                ImGui.TextDisabled($"{Names.Race(preset.Race, preset.Sex)} · {preset.UpdatedAt.ToLocalTime():yyyy-MM-dd} · {parts}");
+                ImGui.TextDisabled($"{Names.Race(preset.Race, preset.Sex)} · {preset.UpdatedAt.ToLocalTime():MM-dd-yyyy} · {parts}");
         }
     }
 
@@ -245,6 +245,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         ImGui.Spacing();
         DrawActions(preset);
         ImGui.Spacing();
+        ImGui.Separator();
         using (var table = ImRaii.Table("##summary", 2, ImGuiTableFlags.SizingStretchSame))
         {
             if (table.Success)
@@ -271,30 +272,20 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
 
         using (ImRaii.Disabled(Busy))
         {
-            using (ImRaii.Disabled(preset.Portrait == null))
-            {
-                if (Theme.PrimaryButton("Restore portrait"))
-                    StartRun(() => plugin.Restore.Start(preset, owner, PlatePart.Portrait), "Restoring the portrait...");
-            }
-            Ui.TipAlways("Opens Edit Portrait from your plate, puts this portrait in, checks it and saves it.");
+            if (Theme.PrimaryButton("Restore"))
+                StartRun(() => plugin.Restore.Start(preset, owner), "Restoring...");
+            Ui.TipAlways("Puts this portrait and plate design back on your plate and saves them. Parts that already match are skipped.");
             ImGui.SameLine();
-            using (ImRaii.Disabled(preset.Design == null))
-            {
-                if (Theme.PrimaryButton("Restore design"))
-                    StartRun(() => plugin.Restore.Start(preset, owner, PlatePart.Design), "Restoring the design...");
-            }
-            Ui.TipAlways("Opens Edit Plate Design from your plate, picks this design, checks it and saves it.");
-
             // The same without saving, for looking it over first.
             using (ImRaii.Disabled(preset.Portrait == null))
             {
-                if (ImGui.Button("Apply portrait")) StartApply(preset);
+                if (ImGui.Button("Apply Portrait")) StartApply(preset);
             }
             Ui.TipAlways("Puts this portrait into Edit Portrait without saving. Open it from your adventurer plate first, then press Save there when it looks right.");
             ImGui.SameLine();
             using (ImRaii.Disabled(preset.Design == null))
             {
-                if (ImGui.Button("Apply design"))
+                if (ImGui.Button("Apply Plate Design"))
                     StartRun(() => plugin.Designs.Start(preset, owner), "Applying the design...");
             }
             Ui.TipAlways("Picks this design in Edit Plate Design without saving. Open it from your adventurer plate first, then press Save there when it looks right.");
@@ -352,7 +343,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
                 if (ImGui.SmallButton("Keep")) confirmDelete = false;
             }
         }
-        ImGui.TextDisabled($"{Names.Race(preset.Race, preset.Sex)} · saved {preset.CreatedAt.ToLocalTime():yyyy-MM-dd HH:mm}");
+        ImGui.TextDisabled($"{Names.Race(preset.Race, preset.Sex)} - Created {preset.CreatedAt.ToLocalTime():MM-dd-yyyy}");
     }
 
     private static void DrawPortrait(PortraitSettings? portrait)
