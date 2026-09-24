@@ -13,9 +13,10 @@ namespace RePlate.Game;
 /// </summary>
 public sealed unsafe class PortraitRestore(PortraitEditor editor)
 {
-    private enum Step { OpenPlate, OpenEditor, WaitEditor, Apply, Check, Save, WaitClose, Confirm }
+    private enum Step { OpenPlate, OpenEditor, WaitEditor, Apply, Check, Save, WaitSaved, Close, WaitClose, Confirm }
 
     private const int SaveButton = 9;
+    private const int CloseButton = 8;
     private const int EditPortraitRow = 0;
     private const int EditMenuRows = 6;
     private static readonly TimeSpan Pace = TimeSpan.FromMilliseconds(500);
@@ -39,7 +40,8 @@ public sealed unsafe class PortraitRestore(PortraitEditor editor)
         Step.OpenPlate => "Opening your plate...",
         Step.OpenEditor or Step.WaitEditor => "Opening Edit Portrait...",
         Step.Apply or Step.Check => "Putting the portrait in...",
-        Step.Save or Step.WaitClose => "Saving...",
+        Step.Save or Step.WaitSaved => "Saving...",
+        Step.Close or Step.WaitClose => "Closing Edit Portrait...",
         _ => "Checking your plate...",
     };
 
@@ -89,7 +91,8 @@ public sealed unsafe class PortraitRestore(PortraitEditor editor)
                 Step.OpenPlate => "Your plate didn't open, so RePlate stopped.",
                 Step.OpenEditor => "Edit Portrait didn't open from the plate's edit menu, so RePlate stopped.",
                 Step.WaitEditor => "Edit Portrait didn't finish loading, so RePlate stopped. Nothing was saved.",
-                Step.WaitClose => "Edit Portrait didn't close after Save. Check the plate yourself.",
+                Step.WaitSaved => "Edit Portrait didn't finish saving. Check it yourself.",
+                Step.Close or Step.WaitClose => "Saved, but Edit Portrait didn't close. Close it yourself.",
                 Step.Confirm => $"Saved, but your plate's portrait doesn't match{mismatch}. Check the plate yourself.",
                 _ => "That step took too long, so RePlate stopped.",
             });
@@ -191,6 +194,30 @@ public sealed unsafe class PortraitRestore(PortraitEditor editor)
                 {
                     Plugin.Log.Information($"Save button: {Clicks.Describe(save)}");
                     Stop("Edit Portrait's Save button wasn't available. Nothing was saved.");
+                    return;
+                }
+                Go(Step.WaitSaved);
+                return;
+
+            case Step.WaitSaved:
+                // The editor stays open after Save; it's done once it no longer has unsaved changes.
+                if (!Visible("BannerEditor"))
+                    Go(Step.Confirm);
+                else if (PortraitEditor.GetEditor(owner, out var saving, out _) == null && !saving->HasDataChanged)
+                    Go(Step.Close);
+                return;
+
+            case Step.Close:
+                var open = Addon("BannerEditor");
+                if (open == null)
+                {
+                    Go(Step.Confirm);
+                    return;
+                }
+                if (!Clicks.ButtonWithParam(open, CloseButton))
+                {
+                    Plugin.Log.Information($"Close button: {Clicks.Describe(Clicks.FindButton(open, CloseButton))}");
+                    Stop("Saved, but Edit Portrait's close button wasn't available. Close it yourself.");
                     return;
                 }
                 Go(Step.WaitClose);
