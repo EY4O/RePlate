@@ -14,10 +14,10 @@ using RePlate.Core.Images;
 namespace RePlate.Windows;
 
 /// <summary>The selected plate's picture: loading it, attaching a PNG, or capturing and cropping the game view.</summary>
-public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, Vector2 Size)?>> plateWindow) : IDisposable
+public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, Vector2 Size)?>> plateWindow, Guide guide) : IDisposable
 {
     private sealed record Result(IDalamudTextureWrap? Picture, byte[]? Unsaved, bool Missing, string Message,
-        ImageCrop? Suggestion = null, Exception? Error = null, bool Cropped = false);
+        ImageCrop? Suggestion = null, Exception? Error = null, bool Cropped = false, bool Saved = false);
 
     private readonly FileDialogManager dialog = new();
     private CancellationTokenSource? cancel;
@@ -34,6 +34,11 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
     private bool isCropped;
 
     public bool Busy => pending != null;
+
+    // Where the picture is up to, for the guided tour.
+    public bool HasCapture => unsaved != null;
+    public bool IsCropped => unsaved != null && isCropped;
+    public int SavedCount { get; private set; }
 
     public void Select(Guid id)
     {
@@ -62,6 +67,7 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
         unsaved = result.Unsaved;
         missing = result.Missing;
         isCropped = result.Cropped;
+        if (result.Saved) SavedCount++;
         message = result.Message;
         ClearSelection();
         suggestion = result.Suggestion;
@@ -83,6 +89,7 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
             }
             ImGui.SameLine();
             if (Step("Capture game view", unsaved == null)) StartCapture();
+            guide.Mark(GuideTarget.Capture);
         }
         Ui.TipAlways("Takes a picture of the whole game screen. With your plate open, RePlate suggests its area to crop.");
 
@@ -92,9 +99,11 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
             using (ImRaii.Disabled(crop == null || dragging))
             {
                 if (Step("Crop", !isCropped) && crop is { } area) StartCrop(area);
+                guide.Mark(GuideTarget.Crop);
             }
             ImGui.SameLine();
             if (Step("Use this picture", isCropped)) StartSave();
+            guide.Mark(GuideTarget.UsePicture);
             ImGui.SameLine();
             if (ImGui.Button("Discard")) Run("Loading picture...", token => LoadAsync(selected, null, token));
             ImGui.TextDisabled(crop is { } size ? $"Selection {size.Width} x {size.Height}. Drag on the picture to change it." : "Drag on the picture to pick an area.");
@@ -173,7 +182,7 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
             try
             {
                 await files.SaveAsync(id, bytes, token).ConfigureAwait(false);
-                return new Result(shown, null, false, "Picture saved.");
+                return new Result(shown, null, false, "Picture saved.", Saved: true);
             }
             catch (Exception ex)
             {
@@ -202,7 +211,7 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
             texture = await Plugin.TextureProvider.CreateFromImageAsync(bytes, "RePlate picture", token).ConfigureAwait(false);
             if (texture.Width != width || texture.Height != height) throw new InvalidDataException("The picture didn't decode properly.");
             if (source != null) await files.SaveAsync(id, bytes, token).ConfigureAwait(false);
-            var result = new Result(texture, null, false, source == null ? "" : "Picture saved.");
+            var result = new Result(texture, null, false, source == null ? "" : "Picture saved.", Saved: source != null);
             texture = null;
             return result;
         }

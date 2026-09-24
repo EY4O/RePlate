@@ -47,6 +47,8 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         FinishCapture(owner);
         FinishApply(owner);
         FinishRuns();
+        plugin.Guide.Update(PlateReader.OwnPlateOpen(owner), store.For(owner).Count, images, plugin.Restore.Running);
+        plugin.Guide.DrawBar();
         DrawToolbar();
         ImGui.Separator();
 
@@ -76,6 +78,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         using (ImRaii.Disabled(capturing != null || !plugin.Store.CanWrite))
         {
             if (Theme.PrimaryButton("Save current plate")) StartCapture();
+            plugin.Guide.Mark(GuideTarget.SavePlate);
         }
         Ui.TipAlways("Copies the portrait and design from your open adventurer plate.");
         ImGui.SameLine();
@@ -86,6 +89,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
                 var owner = plugin.CharacterId;
                 opening = Plugin.Framework.RunOnFrameworkThread(() => plugin.Reader.OpenOwnPlate(owner));
             }
+            plugin.Guide.Mark(GuideTarget.OpenPlate);
         }
         if (status.Length > 0)
         {
@@ -274,6 +278,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         {
             if (Theme.PrimaryButton("Restore"))
                 StartRun(() => plugin.Restore.Start(preset, owner), "Restoring...");
+            plugin.Guide.Mark(GuideTarget.Restore);
             Ui.TipAlways("Puts this portrait and plate design back on your plate and saves them. Parts that already match are skipped.");
             ImGui.SameLine();
             // The same without saving, for looking it over first.

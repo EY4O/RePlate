@@ -16,6 +16,7 @@ public sealed class MainWindow : ThemedWindow
     private readonly PlatesTab plates;
     private readonly AboutTab about;
     private float supportWidth;
+    private bool showPlates;
 
     public MainWindow(Plugin plugin, PlatesTab plates) : base("RePlate###RePlateMain")
     {
@@ -33,6 +34,13 @@ public sealed class MainWindow : ThemedWindow
         });
     }
 
+    /// <summary>Opens the window on the Adventure Plates tab.</summary>
+    public void ShowPlates()
+    {
+        showPlates = true;
+        IsOpen = true;
+    }
+
     public override void Draw()
     {
         var tabRow = ImGui.GetCursorPos();
@@ -45,7 +53,9 @@ public sealed class MainWindow : ThemedWindow
 
     private void DrawTabs()
     {
-        using (var tab = ImRaii.TabItem("Adventure Plates"))
+        var platesFlags = showPlates ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
+        showPlates = false;
+        using (var tab = ImRaii.TabItem("Adventure Plates", platesFlags))
         {
             if (tab.Success) plates.Draw();
         }

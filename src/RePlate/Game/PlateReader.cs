@@ -70,6 +70,8 @@ public sealed unsafe class PlateReader
         return addon.IsNull ? null : (addon.Position, addon.ScaledSize);
     }
 
+    public static bool OwnPlateOpen(ulong owner) => GetOwnCard(owner, out _) == null;
+
     internal static string? GetOwnCard(ulong owner, out AgentCharaCard.Storage* card)
     {
         card = null;

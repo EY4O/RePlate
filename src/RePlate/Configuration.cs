@@ -11,6 +11,9 @@ public sealed class Configuration : IPluginConfiguration
 
     public bool WelcomeSeen { get; set; }
 
+    /// <summary>The guided tour's current step, or -1 when it isn't running.</summary>
+    public int TourStep { get; set; } = -1;
+
     /// <summary>Restore stops with the editor open, before Save, so you can look it over and save it yourself.</summary>
     public bool PauseBeforeSave { get; set; }
 

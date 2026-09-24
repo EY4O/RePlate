@@ -48,11 +48,12 @@ public sealed class Plugin : IDalamudPlugin
         Editor = new PortraitEditor();
         Designs = new DesignEditor();
         Restore = new PlateRestore(Editor, Designs, () => Configuration.PauseBeforeSave);
+        Guide = new Guide(this);
         images = new PlateImages(new ImageFiles(folder), () =>
         {
             var owner = CharacterId;
             return Framework.RunOnFrameworkThread(() => Reader.PlateWindow(owner));
-        });
+        }, Guide);
 
         MainWindow = new MainWindow(this, new PlatesTab(this, images));
         settings = new SettingsWindow(this);
@@ -78,6 +79,7 @@ public sealed class Plugin : IDalamudPlugin
     public PortraitEditor Editor { get; }
     public DesignEditor Designs { get; }
     public PlateRestore Restore { get; }
+    public Guide Guide { get; }
     private MainWindow MainWindow { get; }
 
     /// <summary>The logged-in character's content id, or 0.</summary>
@@ -90,6 +92,13 @@ public sealed class Plugin : IDalamudPlugin
     public void ShowMainWindow() => MainWindow.IsOpen = true;
     public void ToggleSettings() => settings.Toggle();
     public void OpenWelcome() => welcome.Open();
+
+    /// <summary>Starts the guided tour on the Adventure Plates tab.</summary>
+    public void StartTour()
+    {
+        Guide.Start();
+        MainWindow.ShowPlates();
+    }
 
     /// <summary>Stops whatever RePlate is doing in the game's windows.</summary>
     public void StopAll(string message)
