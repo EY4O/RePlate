@@ -13,9 +13,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Dalamud shows a dev plugin's icon from images/icon.png next to the DLL; the packager leaves it out of the zip. -->
+    <!-- icon.png is the installer icon; logo.png is drawn inside the plugin. -->
     <None Include="..\..\images\icon.png" Link="images\icon.png" CopyToOutputDirectory="PreserveNewest" />
-    <!-- The logo drawn inside the plugin, which does ship in the zip. -->
     <None Include="..\..\images\logo.png" Link="images\logo.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

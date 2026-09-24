@@ -44,10 +44,7 @@ public sealed class MainWindow : ThemedWindow
         }
     }
 
-    /// <summary>
-    /// The support button at the right end of the tab row: left click opens Patreon, right click Ko-fi. It's drawn after
-    /// the tabs, over the empty end of their row, and its width is measured once drawn so it sits flush from then on.
-    /// </summary>
+    // Sits at the right end of the tab row. Left click Patreon, right click Ko-fi.
     private void DrawSupport(Vector2 tabRow)
     {
         ImGui.SetCursorPos(new Vector2(Math.Max(tabRow.X, ImGui.GetWindowContentRegionMax().X - supportWidth), tabRow.Y));

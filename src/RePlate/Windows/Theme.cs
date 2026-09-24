@@ -13,13 +13,9 @@ namespace RePlate.Windows;
 
 public enum AccentChoice { GilGold, Rose, AetherBlue, Jade, MoogleViolet, Custom }
 
-/// <summary>What a coloured label means. The meaning picks the colour, with the theme on or off.</summary>
 public enum Tone { Neutral, Accent, Good, Warning, Bad, Info }
 
-/// <summary>
-/// RePlate's look: dark panels, rounded frames and one accent colour. It's pushed only around RePlate's own windows,
-/// and not at all when switched off, so Dalamud's styling is left alone.
-/// </summary>
+/// <summary>Dark panels, rounded frames and an accent colour, applied to RePlate's own windows only.</summary>
 internal static class Theme
 {
     private const uint DefaultAccent = 0xE0A63A;

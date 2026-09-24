@@ -40,7 +40,7 @@ public sealed class Plugin : IDalamudPlugin
     public Configuration Configuration { get; }
     private MainWindow MainWindow { get; }
 
-    /// <summary>Saves shortly after the last change, so typing into a field doesn't write the file every frame.</summary>
+    // Saved a second after the last change, not on every keystroke.
     public void MarkDirty() => dirtySince = DateTime.UtcNow;
 
     public void ToggleMainWindow() => MainWindow.Toggle();
