@@ -26,12 +26,14 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
     [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
     [PluginService] internal static ITextureReadbackProvider TextureReadback { get; private set; } = null!;
+    [PluginService] internal static IAddonLifecycle AddonLifecycle { get; private set; } = null!;
 
     private const string Command = "/replate";
     private static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(1);
 
     private readonly WindowSystem windows = new("RePlate");
     private readonly PlateImages images;
+    private readonly UiProbe probe = new();
     private DateTime? dirtySince;
 
     public Plugin()
@@ -99,6 +101,7 @@ public sealed class Plugin : IDalamudPlugin
     private void OnUpdate(IFramework framework)
     {
         images.Update();
+        probe.Update();
         if (dirtySince is { } since && DateTime.UtcNow - since >= SaveDelay)
         {
             dirtySince = null;
@@ -106,7 +109,11 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    private void OnCommand(string command, string args) => ToggleMainWindow();
+    private void OnCommand(string command, string args)
+    {
+        if (args.Trim().Equals("probe", StringComparison.OrdinalIgnoreCase)) probe.Toggle();
+        else ToggleMainWindow();
+    }
 
     public void Dispose()
     {
@@ -116,6 +123,7 @@ public sealed class Plugin : IDalamudPlugin
         CommandManager.RemoveHandler(Command);
         windows.RemoveAllWindows();
         images.Dispose();
+        probe.Dispose();
         if (dirtySince != null) Configuration.Save();
     }
 }
