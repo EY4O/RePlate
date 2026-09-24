@@ -349,11 +349,16 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
             ImGui.TextDisabled("Not saved with this plate.");
             return;
         }
+        // Every part is listed, None included, so plates line up when you flick between them.
         Line("Base plate", Names.BasePlate(design.BasePlate));
+        Line("Pattern overlay", Names.Decoration(design, DecorationKind.Pattern));
+        Line("Backing", Names.Decoration(design, DecorationKind.Backing));
         Line("Top border", Names.Border(design.TopBorder));
         Line("Bottom border", Names.Border(design.BottomBorder));
-        foreach (var (kind, name) in Names.Decorations(design)) Line(Names.Kind(kind), name);
-        Line("Portrait side", design.InvertPortraitPlacement ? "Flipped" : "Standard");
+        Line("Portrait frame", Names.Decoration(design, DecorationKind.PortraitFrame));
+        Line("Plate frame", Names.Decoration(design, DecorationKind.PlateFrame));
+        Line("Accent", Names.Decoration(design, DecorationKind.Accent));
+        Line("Layout", design.InvertPortraitPlacement ? "Flipped" : "Standard");
     }
 
     private static void Line(string label, string value)

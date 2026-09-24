@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Lumina.Excel.Sheets;
 using RePlate.Core.Plates;
 
@@ -32,29 +31,22 @@ public static class Names
     public static string BasePlate(ushort id) => Plugin.DataManager.GetExcelSheet<CharaCardBase>().GetRowOrDefault(id) is { } row
         ? Text(row.Name.ExtractText(), id) : Unknown(id);
 
-    public static string Border(byte id) => Plugin.DataManager.GetExcelSheet<CharaCardHeader>().GetRowOrDefault(id) is { } row
-        ? Text(row.Name.ExtractText(), id) : Unknown(id);
-
-    /// <summary>The design's decorations by kind; kinds the plate doesn't use are left out.</summary>
-    public static IReadOnlyList<(DecorationKind Kind, string Name)> Decorations(PlateDesign design)
+    public static string Border(byte id)
     {
-        var sheet = Plugin.DataManager.GetExcelSheet<CharaCardDecoration>();
-        var result = new List<(DecorationKind, string)>();
-        foreach (var id in design.Decorations)
-            if (id != 0 && sheet.GetRowOrDefault(id) is { } row && row.Component is >= 1 and <= 5)
-                result.Add(((DecorationKind)row.Component, Text(row.Name.ExtractText(), id)));
-        result.Sort((a, b) => a.Item1.CompareTo(b.Item1));
-        return result;
+        if (id == 0) return "None";
+        return Plugin.DataManager.GetExcelSheet<CharaCardHeader>().GetRowOrDefault(id) is { } row
+            ? Text(row.Name.ExtractText(), id) : Unknown(id);
     }
 
-    public static string Kind(DecorationKind kind) => kind switch
+    /// <summary>The design's decoration of this kind, or None when it has none.</summary>
+    public static string Decoration(PlateDesign design, DecorationKind kind)
     {
-        DecorationKind.Backing => "Backing",
-        DecorationKind.Pattern => "Pattern overlay",
-        DecorationKind.PortraitFrame => "Portrait frame",
-        DecorationKind.PlateFrame => "Plate frame",
-        _ => "Accent",
-    };
+        var sheet = Plugin.DataManager.GetExcelSheet<CharaCardDecoration>();
+        foreach (var id in design.Decorations)
+            if (id != 0 && sheet.GetRowOrDefault(id) is { } row && row.Component == (byte)kind)
+                return Text(row.Name.ExtractText(), id);
+        return "None";
+    }
 
     public static string Race(uint id, byte sex) => Plugin.DataManager.GetExcelSheet<Race>().GetRowOrDefault(id) is { } row
         ? (sex == 1 ? row.Feminine : row.Masculine).ExtractText() : "";
