@@ -87,7 +87,13 @@ public sealed unsafe class UiProbe : IDisposable
             {
                 // After a design pick: which row each list now shows, and its label.
                 if (design && args is AddonReceiveEventArgs after && !Ignored.Contains(after.AtkEventType))
+                {
                     Write($"{args.AddonName} after {after.AtkEventType} param={after.EventParam} | {Card()} | {Dropdowns(addon, false)}");
+                    // The "Display ... List" buttons open a picker; record what its rows hold.
+                    if (after.AtkEventType == AddonEventType.ButtonClick && after.EventParam is >= 19 and <= 26 ||
+                        after.AtkEventType == AddonEventType.ListItemClick)
+                        Write($"{args.AddonName} picker: {Picker(addon)}");
+                }
                 return;
             }
 
@@ -133,6 +139,22 @@ public sealed unsafe class UiProbe : IDisposable
 
     // Each dropdown in the window: its selected row and that row's label. With labels, the first rows and the
     // disabled count, which shows how rows line up with the game's sheets and whether locked items are listed.
+    // The design window's picker list (node 10): each row's icon, label and whether it's greyed out.
+    private static string Picker(AtkUnitBase* addon)
+    {
+        var node = addon->GetComponentNodeById(10);
+        if (node == null || node->Component == null || node->Component->GetComponentType() != ComponentType.List) return "none";
+        var list = (AtkComponentList*)node->Component;
+        var rows = new List<string>();
+        for (var i = 0; i < list->ListLength && i < 300; i++)
+        {
+            var item = &list->ItemRendererList[i];
+            var label = item->Label.HasValue ? System.Text.Encoding.UTF8.GetString(item->Label.AsSpan()) : "";
+            rows.Add($"{i}:{item->IconId}{(label.Length > 0 ? ":" + Quote(label) : "")}{(item->IsDisabled ? "x" : "")}");
+        }
+        return $"visible={node->AtkResNode.IsVisible()} selected={list->SelectedItemIndex} rows={list->ListLength} [{string.Join(" ", rows)}]";
+    }
+
     private static string Dropdowns(AtkUnitBase* addon, bool labels)
     {
         if (addon == null) return "none";
