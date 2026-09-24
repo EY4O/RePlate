@@ -255,7 +255,8 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
         {
             if (savedBefore != null) reviewed[(preset!.Id, part)] = savedBefore;
             var rest = parts.Count > 0 ? " Once it's saved, press Restore again for the design." : "";
-            Finish(new ApplyResult(true, $"{check.Message}{rest}", false));
+            var message = preset!.Imported ? SharedMessage() : check.Message;
+            Finish(new ApplyResult(true, $"{message}{rest}", false));
             return;
         }
         if (!check.Clean)
@@ -326,6 +327,14 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
 
     // What your plate keeps, compared with the preset; null while it can't be read. With the design editor open the
     // plate shows its unsaved picks, so this is only asked when the part's editor is closed.
+    // A shared plate always ends with the player's look, so its message is an invitation rather than a report.
+    private string SharedMessage()
+    {
+        var warning = part == PlatePart.Portrait && portraits.GameWarning is { } w ? $" The game warns that {w}." : "";
+        var kept = part == PlatePart.Portrait ? portraits.Kept : designs.Kept;
+        return $"{(part == PlatePart.Portrait ? "Portrait" : "Design")} Applied! Look it over and press Save if it's looking good.{warning}{kept}";
+    }
+
     // What the plate has saved for this part, as text, to notice when the player saves after a review.
     private string? Fingerprint()
     {

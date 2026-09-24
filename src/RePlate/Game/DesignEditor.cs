@@ -42,6 +42,9 @@ public sealed unsafe class DesignEditor
     // A shared plate's parts this character doesn't have: left as they are, and named in the result.
     private bool[] keepYours = new bool[Parts.Length];
     private string kept = "";
+
+    /// <summary>" Kept yours for: ..." when the last shared design had something locked, else empty.</summary>
+    public string Kept => kept;
     private int pickerPart = -1;
     private bool picked;
     private DateTime openedAt;

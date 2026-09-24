@@ -26,6 +26,12 @@ public sealed unsafe class PortraitEditor
     private PortraitSettings? target;
     private string kept = "";
 
+    /// <summary>After Verify: " Kept yours for: ..." when a shared plate had something locked, else empty.</summary>
+    public string Kept => kept;
+
+    /// <summary>After Verify: what the game warns about the framing, or null.</summary>
+    public string? GameWarning { get; private set; }
+
     public ApplyResult Apply(PlatePreset preset, ulong owner)
     {
         if (preset.Portrait is not { } portrait || preset.Owner != owner) return new(false, "This plate has no portrait to apply.");
@@ -103,6 +109,7 @@ public sealed unsafe class PortraitEditor
         if (differences.Contains("camera"))
             Plugin.Log.Debug($"Camera wanted {Camera(portrait)}, editor has {Camera(actual)}");
         var error = view->GetPortraitError();
+        GameWarning = error != CharaViewPortrait.PortraitError.None ? Warning(error) : null;
         var result = differences.Count > 0
             ? new ApplyResult(false, $"Some parts didn't take: {string.Join(", ", differences)}. Nothing was saved; press Cancel in the editor to undo.")
             : error != CharaViewPortrait.PortraitError.None
