@@ -13,7 +13,7 @@ public enum PlatePart { Portrait, Design }
 /// its edit menu, put the saved choices in, check them, press Save, and check what the plate kept. Anything unexpected
 /// stops it, and if it stops before Save the editor is left open for you. Start and Update run on the framework thread.
 /// </summary>
-public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor designs)
+public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor designs, Func<bool> pauseBeforeSave)
 {
     private enum Step { OpenPlate, OpenEditor, WaitEditor, Apply, Check, Save, WaitSaved, Close, WaitClose, Confirm }
 
@@ -239,6 +239,13 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
         if (!check.Clean)
         {
             Stop($"{check.Message} {Editor} is left open; nothing was saved.");
+            return;
+        }
+        if (pauseBeforeSave())
+        {
+            // Restore again after saving: this part will match by then and the next one follows.
+            var rest = parts.Count > 0 ? " Once it's saved, press Restore again for the design." : "";
+            Finish(new ApplyResult(true, $"The {Name} is in {Editor}. Look it over and press Save there.{rest}", true));
             return;
         }
         Go(Step.Save);

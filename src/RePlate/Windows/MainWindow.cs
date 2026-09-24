@@ -2,6 +2,7 @@ using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 
@@ -13,15 +14,23 @@ public sealed class MainWindow : ThemedWindow
     private const string KoFiUrl = "https://ko-fi.com/looneth";
 
     private readonly PlatesTab plates;
-    private readonly AboutTab about = new();
+    private readonly AboutTab about;
     private float supportWidth;
 
-    public MainWindow(PlatesTab plates) : base("RePlate###RePlateMain")
+    public MainWindow(Plugin plugin, PlatesTab plates) : base("RePlate###RePlateMain")
     {
         this.plates = plates;
+        about = new AboutTab(plugin);
         Size = new Vector2(820, 560);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(640, 420), MaximumSize = new Vector2(1600, 1400) };
+        TitleBarButtons.Add(new TitleBarButton
+        {
+            Icon = FontAwesomeIcon.Cog,
+            IconOffset = new Vector2(2, 1),
+            Click = _ => plugin.ToggleSettings(),
+            ShowTooltip = () => ImGui.SetTooltip("Settings"),
+        });
     }
 
     public override void Draw()
@@ -36,9 +45,17 @@ public sealed class MainWindow : ThemedWindow
 
     private void DrawTabs()
     {
-        using (var tab = ImRaii.TabItem("Plates"))
+        using (var tab = ImRaii.TabItem("Adventure Plates"))
         {
             if (tab.Success) plates.Draw();
+        }
+        using (var tab = ImRaii.TabItem("Portraits"))
+        {
+            if (tab.Success)
+            {
+                ImGuiHelpers.ScaledDummy(6);
+                ImGui.TextDisabled("Saving and restoring your gear sets' portraits is coming here later.");
+            }
         }
         using (var tab = ImRaii.TabItem("About"))
         {

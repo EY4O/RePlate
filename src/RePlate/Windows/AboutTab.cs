@@ -6,7 +6,7 @@ using Dalamud.Interface.Utility.Raii;
 
 namespace RePlate.Windows;
 
-public sealed class AboutTab
+public sealed class AboutTab(Plugin plugin)
 {
     private const string SiteUrl = "https://ey4o.github.io/XIV-Plugins/";
     private const string SourceUrl = "https://github.com/EY4O/RePlate";
@@ -21,15 +21,21 @@ public sealed class AboutTab
         Ui.Logo(112);
         ImGuiHelpers.ScaledDummy(14);
 
-        (string Label, string Url)[] links = [("Plugin site", SiteUrl), ("Source code", SourceUrl)];
+        (string Label, Action Click, string Tip)[] buttons =
+        [
+            ("Welcome guide", plugin.OpenWelcome, "A short tour of what RePlate does."),
+            ("Settings", plugin.ToggleSettings, "Pausing before saving, and the look."),
+            ("Plugin site", () => Ui.OpenUrl(SiteUrl), SiteUrl),
+            ("Source code", () => Ui.OpenUrl(SourceUrl), SourceUrl + "\nMIT licence."),
+        ];
         var style = ImGui.GetStyle();
-        var width = links.Sum(l => ImGui.CalcTextSize(l.Label).X + style.FramePadding.X * 2) + style.ItemSpacing.X * (links.Length - 1);
+        var width = buttons.Sum(b => ImGui.CalcTextSize(b.Label).X + style.FramePadding.X * 2) + style.ItemSpacing.X * (buttons.Length - 1);
         ImGui.SetCursorPosX(Math.Max(0, (ImGui.GetContentRegionAvail().X - width) / 2) + ImGui.GetCursorPosX());
-        for (var i = 0; i < links.Length; i++)
+        for (var i = 0; i < buttons.Length; i++)
         {
             if (i > 0) ImGui.SameLine();
-            if (ImGui.Button(links[i].Label)) Ui.OpenUrl(links[i].Url);
-            Ui.Tip(links[i].Url);
+            if (ImGui.Button(buttons[i].Label)) buttons[i].Click();
+            Ui.Tip(buttons[i].Tip);
         }
     }
 }

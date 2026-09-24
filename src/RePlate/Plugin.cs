@@ -26,14 +26,14 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
     [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
     [PluginService] internal static ITextureReadbackProvider TextureReadback { get; private set; } = null!;
-    [PluginService] internal static IAddonLifecycle AddonLifecycle { get; private set; } = null!;
 
     private const string Command = "/replate";
     private static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(1);
 
     private readonly WindowSystem windows = new("RePlate");
     private readonly PlateImages images;
-    private readonly UiProbe probe = new();
+    private readonly SettingsWindow settings;
+    private readonly WelcomeWindow welcome;
     private DateTime? dirtySince;
 
     public Plugin()
@@ -47,19 +47,28 @@ public sealed class Plugin : IDalamudPlugin
         Reader = new PlateReader();
         Editor = new PortraitEditor();
         Designs = new DesignEditor();
-        Restore = new PlateRestore(Editor, Designs);
+        Restore = new PlateRestore(Editor, Designs, () => Configuration.PauseBeforeSave);
         images = new PlateImages(new ImageFiles(folder), () =>
         {
             var owner = CharacterId;
             return Framework.RunOnFrameworkThread(() => Reader.PlateWindow(owner));
         });
 
-        MainWindow = new MainWindow(new PlatesTab(this, images));
+        MainWindow = new MainWindow(this, new PlatesTab(this, images));
+        settings = new SettingsWindow(this);
+        welcome = new WelcomeWindow(this);
         windows.AddWindow(MainWindow);
+        windows.AddWindow(settings);
+        windows.AddWindow(welcome);
+        if (!Configuration.WelcomeSeen) welcome.Open();
 
-        CommandManager.AddHandler(Command, new CommandInfo(OnCommand) { HelpMessage = "Open RePlate. /replate stop stops a restore." });
+        CommandManager.AddHandler(Command, new CommandInfo(OnCommand)
+        {
+            HelpMessage = "Open RePlate. /replate settings, /replate welcome, /replate stop (stops a restore).",
+        });
         PluginInterface.UiBuilder.Draw += Draw;
         PluginInterface.UiBuilder.OpenMainUi += ToggleMainWindow;
+        PluginInterface.UiBuilder.OpenConfigUi += ToggleSettings;
         Framework.Update += OnUpdate;
     }
 
@@ -78,6 +87,16 @@ public sealed class Plugin : IDalamudPlugin
     public void MarkDirty() => dirtySince = DateTime.UtcNow;
 
     public void ToggleMainWindow() => MainWindow.Toggle();
+    public void ShowMainWindow() => MainWindow.IsOpen = true;
+    public void ToggleSettings() => settings.Toggle();
+    public void OpenWelcome() => welcome.Open();
+
+    /// <summary>Stops whatever RePlate is doing in the game's windows.</summary>
+    public void StopAll(string message)
+    {
+        Designs.Stop(message);
+        Restore.Stop(message);
+    }
 
     // Earlier builds kept portraits in library.json. Bring them over once; the old file is left as it was.
     private void ImportOldLibrary(string path)
@@ -105,7 +124,6 @@ public sealed class Plugin : IDalamudPlugin
     private void OnUpdate(IFramework framework)
     {
         images.Update();
-        probe.Update();
         Designs.Update();
         Restore.Update();
         if (dirtySince is { } since && DateTime.UtcNow - since >= SaveDelay)
@@ -119,8 +137,11 @@ public sealed class Plugin : IDalamudPlugin
     {
         switch (args.Trim().ToLowerInvariant())
         {
-            case "probe":
-                probe.Toggle();
+            case "settings" or "config":
+                ToggleSettings();
+                break;
+            case "welcome":
+                OpenWelcome();
                 break;
             case "stop":
                 StopAll("Stopped. Nothing more was changed.");
@@ -131,22 +152,15 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    /// <summary>Stops whatever RePlate is doing in the game's windows.</summary>
-    public void StopAll(string message)
-    {
-        Designs.Stop(message);
-        Restore.Stop(message);
-    }
-
     public void Dispose()
     {
         Framework.Update -= OnUpdate;
         PluginInterface.UiBuilder.Draw -= Draw;
         PluginInterface.UiBuilder.OpenMainUi -= ToggleMainWindow;
+        PluginInterface.UiBuilder.OpenConfigUi -= ToggleSettings;
         CommandManager.RemoveHandler(Command);
         windows.RemoveAllWindows();
         images.Dispose();
-        probe.Dispose();
         if (dirtySince != null) Configuration.Save();
     }
 }

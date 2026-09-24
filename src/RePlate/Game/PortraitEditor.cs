@@ -50,10 +50,6 @@ public sealed unsafe class PortraitEditor
             var list = Dropdown(addon, i + 1);
             listOk[i] = list != null && list->GetSelectedItemIndex() == IndexOf(sets[i], currentIds[i]);
         }
-        var presets = Dropdown(addon, 0);
-        var shown = presets != null ? presets->GetSelectedItemIndex() : -2;
-        int byId = PresetIndex(state, current, false), byPosition = PresetIndex(state, current, true);
-        bool? presetByPosition = shown == byId ? false : shown == byPosition ? true : null;
         refreshPlayCheckbox = addon->PlayAnimationCheckbox != null && addon->PlayAnimationCheckbox->IsChecked == !view->IsAnimationPaused();
 
         var data = PortraitData.ToGame(portrait);
@@ -67,15 +63,13 @@ public sealed unsafe class PortraitEditor
         var ids = ListIds(portrait);
         for (var i = 0; i < sets.Length; i++)
             if (listOk[i] && IndexOf(sets[i], ids[i]) is >= 0 and var index) Dropdown(addon, i + 1)->SelectItem(index);
-        if (presetByPosition is { } position && PresetIndex(state, portrait, position) is >= 0 and var presetIndex)
-            presets->SelectItem(presetIndex);
+        // The design preset list is left alone: its rows don't line up with the game's preset lookup.
 
         state->SetHasChanged(true);
 
         var skipped = ListParts.Where((_, i) => !listOk[i]).ToList();
         if (sliderOk.Contains(false)) skipped.Add($"{sliderOk.Count(ok => !ok)} sliders");
-        if (presetByPosition == null) skipped.Add($"design preset (shows {shown}, by id {byId}, by position {byPosition})");
-        if (skipped.Count > 0) Plugin.Log.Information($"Edit Portrait controls left as they were: {string.Join(", ", skipped)}");
+        if (skipped.Count > 0) Plugin.Log.Debug($"Edit Portrait controls left as they were: {string.Join(", ", skipped)}");
         return new(true, "Applied. Checking...");
     }
 
@@ -95,7 +89,7 @@ public sealed unsafe class PortraitEditor
 
         var differences = PortraitCheck.Differences(portrait, actual);
         if (differences.Contains("camera"))
-            Plugin.Log.Information($"Camera wanted {Camera(portrait)}, editor has {Camera(actual)}");
+            Plugin.Log.Debug($"Camera wanted {Camera(portrait)}, editor has {Camera(actual)}");
         var error = view->GetPortraitError();
         var result = differences.Count > 0
             ? new ApplyResult(false, $"Some parts didn't take: {string.Join(", ", differences)}. Nothing was saved; press Cancel in the editor to undo.")
@@ -108,14 +102,6 @@ public sealed unsafe class PortraitEditor
 
     private static string Camera(PortraitSettings p) =>
         $"position [{string.Join(", ", p.CameraPosition)}] target [{string.Join(", ", p.CameraTarget)}] zoom {p.CameraZoom} rotation {p.ImageRotation}";
-
-    // The game's preset lookup may want row ids or list positions; Apply uses whichever matches what the list shows.
-    private static int PresetIndex(AgentBannerEditorState* s, PortraitSettings p, bool byPosition)
-    {
-        if (!byPosition) return s->GetPresetIndex(p.Background, p.Frame, p.Accent);
-        int background = IndexOf(&s->Backgrounds, p.Background), frame = IndexOf(&s->Frames, p.Frame), accent = IndexOf(&s->Accents, p.Accent);
-        return background < 0 || frame < 0 || accent < 0 ? -1 : s->GetPresetIndex((ushort)background, (ushort)frame, (ushort)accent);
-    }
 
     internal static string? GetEditor(ulong owner, out AgentBannerEditorState* state, out AddonBannerEditor* editor)
     {
