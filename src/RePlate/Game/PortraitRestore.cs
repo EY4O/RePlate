@@ -26,6 +26,7 @@ public sealed unsafe class PortraitRestore(PortraitEditor editor)
     private ulong owner;
     private Step step;
     private bool asked;
+    private bool reapplied;
     private string mismatch = "";
     private DateTime stepStarted;
     private DateTime nextAction;
@@ -59,6 +60,7 @@ public sealed unsafe class PortraitRestore(PortraitEditor editor)
         this.owner = owner;
         finished = null;
         mismatch = "";
+        reapplied = false;
         Go(Step.OpenPlate);
         Plugin.Log.Information($"Restoring the portrait from \"{preset.Name}\".");
         return new(true, Progress);
@@ -156,6 +158,13 @@ public sealed unsafe class PortraitRestore(PortraitEditor editor)
 
             case Step.Check:
                 var check = editor.Verify(preset, owner);
+                if (!check.Clean && !reapplied)
+                {
+                    // A freshly opened editor can still be settling its camera; put the portrait in once more.
+                    reapplied = true;
+                    Go(Step.Apply);
+                    return;
+                }
                 if (!check.Clean)
                 {
                     Stop(check.Message + " Edit Portrait is left open; nothing was saved.");

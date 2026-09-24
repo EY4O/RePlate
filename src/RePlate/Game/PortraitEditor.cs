@@ -94,6 +94,8 @@ public sealed unsafe class PortraitEditor
         var actual = PortraitData.FromGame(after, after.BannerBg, state->BannerEntry.BannerFrame, state->BannerEntry.BannerDecoration);
 
         var differences = PortraitCheck.Differences(portrait, actual);
+        if (differences.Contains("camera"))
+            Plugin.Log.Information($"Camera wanted {Camera(portrait)}, editor has {Camera(actual)}");
         var error = view->GetPortraitError();
         var result = differences.Count > 0
             ? new ApplyResult(false, $"Some parts didn't take: {string.Join(", ", differences)}. Nothing was saved; press Cancel in the editor to undo.")
@@ -103,6 +105,9 @@ public sealed unsafe class PortraitEditor
         Plugin.Log.Information($"Applied \"{preset.Name}\": {result.Message}");
         return result;
     }
+
+    private static string Camera(PortraitSettings p) =>
+        $"position [{string.Join(", ", p.CameraPosition)}] target [{string.Join(", ", p.CameraTarget)}] zoom {p.CameraZoom} rotation {p.ImageRotation}";
 
     // The game's preset lookup may want row ids or list positions; Apply uses whichever matches what the list shows.
     private static int PresetIndex(AgentBannerEditorState* s, PortraitSettings p, bool byPosition)
