@@ -14,7 +14,8 @@ public static class PortraitCheck
         if (wanted.Pose != actual.Pose) parts.Add("pose");
         else if (Math.Abs(wanted.AnimationProgress - actual.AnimationProgress) > AnimationTolerance) parts.Add("pose timing");
         if (wanted.Expression != actual.Expression) parts.Add("expression");
-        if (!Close(wanted.CameraPosition, actual.CameraPosition) || !Close(wanted.CameraTarget, actual.CameraTarget) ||
+        // Only X, Y and Z place the camera. The fourth number is 0 on a saved plate and 1 in the open editor.
+        if (!Close(wanted.CameraPosition[..3], actual.CameraPosition[..3]) || !Close(wanted.CameraTarget[..3], actual.CameraTarget[..3]) ||
             wanted.CameraZoom != actual.CameraZoom || wanted.ImageRotation != actual.ImageRotation)
             parts.Add("camera");
         if (!Close(wanted.HeadDirection, actual.HeadDirection)) parts.Add("head direction");

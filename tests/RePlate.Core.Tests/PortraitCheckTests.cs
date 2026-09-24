@@ -26,6 +26,19 @@ public class PortraitCheckTests
     }
 
     [Fact]
+    public void TheCamerasFourthNumberIsIgnored()
+    {
+        var saved = PresetTests.Portrait();
+        var editor = saved with
+        {
+            CameraPosition = [.. saved.CameraPosition[..3], 1],
+            CameraTarget = [.. saved.CameraTarget[..3], 1],
+        };
+        Assert.Empty(PortraitCheck.Differences(saved, editor));
+        Assert.Equal(["camera"], PortraitCheck.Differences(saved, editor with { CameraPosition = [0, 0, 0, 1] }));
+    }
+
+    [Fact]
     public void EachChangedPartIsNamed()
     {
         var wanted = PresetTests.Portrait();
