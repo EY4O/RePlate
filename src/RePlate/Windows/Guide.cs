@@ -79,9 +79,11 @@ public sealed class Guide(Plugin plugin)
     public void DrawBar()
     {
         if (!Active) return;
-        var last = Current >= Steps.Length - 1;
+        // Taken now: the buttons below can end the tour while this frame is still being drawn.
+        var step = Math.Min(Current, Steps.Length - 1);
+        var last = step == Steps.Length - 1;
         using (ImRaii.PushColor(ImGuiCol.Text, Theme.AccentText))
-            ImGui.TextUnformatted(last ? "Guided tour: done" : $"Guided tour: step {Current + 1} of {Steps.Length - 1}");
+            ImGui.TextUnformatted(last ? "Guided tour: done" : $"Guided tour: step {step + 1} of {Steps.Length - 1}");
         ImGui.SameLine();
         if (last)
         {
@@ -89,11 +91,11 @@ public sealed class Guide(Plugin plugin)
         }
         else
         {
-            if (ImGui.SmallButton("Skip step")) Go(Current is >= PictureStart and <= PictureEnd ? RestoreStep : Current + 1);
+            if (ImGui.SmallButton("Skip step")) Go(step is >= PictureStart and <= PictureEnd ? RestoreStep : step + 1);
             ImGui.SameLine();
             if (ImGui.SmallButton("End tour")) End();
         }
-        ImGui.TextWrapped(Steps[Math.Min(Current, Steps.Length - 1)].Bar);
+        ImGui.TextWrapped(Steps[step].Bar);
         ImGui.Separator();
     }
 
