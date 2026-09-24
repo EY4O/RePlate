@@ -39,10 +39,7 @@ public sealed unsafe class DesignEditor
     private int[] tried = new int[Parts.Length];
     private bool[] arrowsOnly = new bool[Parts.Length];
     private Pick pick;
-    private int pickPart = -1;
     private int pickRow;
-    private DateTime openedAt;
-    private string opener = "";
     private bool flipped;
     private int clicks;
     private DateTime nextClick;
@@ -85,7 +82,6 @@ public sealed unsafe class DesignEditor
         tried = new int[Parts.Length];
         arrowsOnly = new bool[Parts.Length];
         pick = Pick.None;
-        pickPart = -1;
         flipped = false;
         clicks = 0;
         nextClick = DateTime.UtcNow;
@@ -114,7 +110,11 @@ public sealed unsafe class DesignEditor
         var current = Ids(card);
         for (var i = 0; i < Parts.Length; i++)
         {
-            if (current[i] == wanted[i]) continue;
+            if (current[i] == wanted[i])
+            {
+                pick = Pick.None;
+                continue;
+            }
             var list = List(addon, Parts[i]);
             var rows = list == null ? [] : Rows(list, i, wanted[i]);
             if (tried[i] >= rows.Count)
@@ -163,34 +163,21 @@ public sealed unsafe class DesignEditor
             UseArrows(part, "the list wasn't found");
             return;
         }
-        // A new part starts from the top.
-        if (pickPart != part)
-        {
-            pickPart = part;
-            pick = Pick.None;
-        }
         switch (pick)
         {
             case Pick.None:
-                if (!OpenList(addon, dropdown, out opener))
+                if (!OpenList(addon, dropdown))
                 {
-                    UseArrows(part, $"its list button has no click of its own; {opener}");
+                    UseArrows(part, "its list button has no click of its own");
                     return;
                 }
                 pick = Pick.Opened;
-                openedAt = DateTime.UtcNow;
-                Wait(TimeSpan.FromMilliseconds(100));
+                Wait(TimeSpan.FromMilliseconds(150));
                 return;
             case Pick.Opened:
                 if (!dropdown->IsOpen)
                 {
-                    // Give it half a second to open before going back to the arrows.
-                    if (DateTime.UtcNow - openedAt < TimeSpan.FromMilliseconds(500))
-                    {
-                        nextClick = DateTime.UtcNow + TimeSpan.FromMilliseconds(50);
-                        return;
-                    }
-                    UseArrows(part, $"the list didn't open; clicked {opener}, pending={dropdown->OpenStateChangePending}");
+                    UseArrows(part, "the list didn't open");
                     return;
                 }
                 pickRow = row;
@@ -204,8 +191,8 @@ public sealed unsafe class DesignEditor
                 if (selected == pickRow) tried[part]++;
                 else
                 {
-                    if (dropdown->IsOpen) OpenList(addon, dropdown, out _);
-                    UseArrows(part, $"the pick didn't take; the list shows row {selected}, not {pickRow}");
+                    if (dropdown->IsOpen) OpenList(addon, dropdown);
+                    UseArrows(part, "the pick didn't take");
                 }
                 return;
         }
@@ -213,27 +200,18 @@ public sealed unsafe class DesignEditor
 
     // Toggles the list with its own button. Only when the list handles that click itself: if the window did, the
     // click could carry a number the window also uses for something else.
-    private static bool OpenList(AtkUnitBase* addon, AtkComponentDropDownList* dropdown, out string clicked)
+    private static bool OpenList(AtkUnitBase* addon, AtkComponentDropDownList* dropdown)
     {
         var button = &dropdown->Checkbox->AtkComponentButton;
-        clicked = "button disabled or missing";
         if (!button->IsEnabled || button->OwnerNode == null) return false;
-        // Note what's registered on the button, so a failure says where the click would have gone.
-        var seen = new List<string>();
         for (var evt = button->OwnerNode->AtkResNode.AtkEventManager.Event; evt != null; evt = evt->NextEvent)
         {
-            var listener = (nint)evt->Listener;
-            var who = listener == (nint)addon ? "window" : listener == (nint)dropdown ? "list" :
-                      listener == (nint)dropdown->Checkbox ? "list button" : "other";
-            seen.Add($"{evt->State.EventType}/{evt->Param}->{who}");
-            if (evt->State.EventType != AtkEventType.ButtonClick || evt->Listener == null || who == "window") continue;
+            if (evt->State.EventType != AtkEventType.ButtonClick || evt->Listener == null || (nint)evt->Listener == (nint)addon) continue;
             var copy = *evt;
             var data = new AtkEventData();
             evt->Listener->ReceiveEvent(AtkEventType.ButtonClick, (int)evt->Param, &copy, &data);
-            clicked = $"{evt->State.EventType}/{evt->Param}->{who}";
             return true;
         }
-        clicked = $"events: {string.Join(", ", seen)}";
         return false;
     }
 
