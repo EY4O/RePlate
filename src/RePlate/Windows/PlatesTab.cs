@@ -19,6 +19,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
     private static readonly TimeSpan CheckDelay = TimeSpan.FromSeconds(1);
 
     private const string ImportPopup = "Import a shared plate###replateImport";
+    private const string DeleteQuestion = "Delete this plate and its picture?";
 
     private Task<CaptureResult>? capturing;
     private string importCode = "";
@@ -372,6 +373,12 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
 
         using (ImRaii.PushColor(ImGuiCol.Text, Theme.AccentText)) ImGui.TextUnformatted(preset.Name);
         ImGui.SameLine();
+        // The buttons sit at the right edge, or straight after a name too long to leave room.
+        var style = ImGui.GetStyle();
+        string[] buttons = confirmDelete ? ["Rename", "Share", "Yes, delete", "Keep"] : ["Rename", "Share", "Delete"];
+        var width = buttons.Sum(b => ImGui.CalcTextSize(b).X + style.FramePadding.X * 2) + style.ItemSpacing.X * (buttons.Length - 1);
+        if (confirmDelete) width += ImGui.CalcTextSize(DeleteQuestion).X + style.ItemSpacing.X;
+        ImGui.SetCursorPosX(Math.Max(ImGui.GetCursorPosX(), ImGui.GetWindowContentRegionMax().X - width));
         using (ImRaii.Disabled(!plugin.Store.CanWrite))
         {
             if (ImGui.SmallButton("Rename"))
@@ -395,7 +402,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
             }
             else
             {
-                ImGui.TextColored(Theme.Warning, "Delete this plate and its picture?");
+                ImGui.TextColored(Theme.Warning, DeleteQuestion);
                 ImGui.SameLine();
                 if (Theme.DangerButton("Yes, delete"))
                 {
