@@ -12,11 +12,13 @@ public sealed class MainWindow : ThemedWindow
     private const string PatreonUrl = "https://www.patreon.com/Looneth";
     private const string KoFiUrl = "https://ko-fi.com/looneth";
 
+    private readonly PlatesTab plates;
     private readonly AboutTab about = new();
     private float supportWidth;
 
-    public MainWindow(Plugin plugin) : base("RePlate###RePlateMain")
+    public MainWindow(PlatesTab plates) : base("RePlate###RePlateMain")
     {
+        this.plates = plates;
         Size = new Vector2(820, 560);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(640, 420), MaximumSize = new Vector2(1600, 1400) };
@@ -36,7 +38,7 @@ public sealed class MainWindow : ThemedWindow
     {
         using (var tab = ImRaii.TabItem("Plates"))
         {
-            if (tab.Success) ImGui.TextDisabled("Your saved plates will appear here.");
+            if (tab.Success) plates.Draw();
         }
         using (var tab = ImRaii.TabItem("About"))
         {
