@@ -31,32 +31,7 @@ public sealed unsafe class PlateReader
         PortraitSettings? portrait = null;
         if (!card->IsNotCreated && !card->WasResetDueToFantasia)
         {
-            var p = card->PortraitData;
-            portrait = new PortraitSettings
-            {
-                CameraPosition = [(float)p.CameraPosition.X, (float)p.CameraPosition.Y, (float)p.CameraPosition.Z, (float)p.CameraPosition.W],
-                CameraTarget = [(float)p.CameraTarget.X, (float)p.CameraTarget.Y, (float)p.CameraTarget.Z, (float)p.CameraTarget.W],
-                ImageRotation = p.ImageRotation,
-                CameraZoom = p.CameraZoom,
-                Pose = p.BannerTimeline,
-                AnimationProgress = p.AnimationProgress,
-                Expression = p.Expression,
-                HeadDirection = [(float)p.HeadDirection.X, (float)p.HeadDirection.Y],
-                EyeDirection = [(float)p.EyeDirection.X, (float)p.EyeDirection.Y],
-                DirectionalRed = p.DirectionalLightingColorRed,
-                DirectionalGreen = p.DirectionalLightingColorGreen,
-                DirectionalBlue = p.DirectionalLightingColorBlue,
-                DirectionalBrightness = p.DirectionalLightingBrightness,
-                DirectionalVerticalAngle = p.DirectionalLightingVerticalAngle,
-                DirectionalHorizontalAngle = p.DirectionalLightingHorizontalAngle,
-                AmbientRed = p.AmbientLightingColorRed,
-                AmbientGreen = p.AmbientLightingColorGreen,
-                AmbientBlue = p.AmbientLightingColorBlue,
-                AmbientBrightness = p.AmbientLightingBrightness,
-                Background = card->BannerBg,
-                Frame = card->BannerFrame,
-                Accent = card->BannerDecoration,
-            };
+            portrait = PortraitData.FromGame(card->PortraitData, card->BannerBg, card->BannerFrame, card->BannerDecoration);
             if (!portrait.IsValid()) return new(null, "The portrait couldn't be read.");
         }
 
@@ -95,7 +70,7 @@ public sealed unsafe class PlateReader
         return addon.IsNull ? null : (addon.Position, addon.ScaledSize);
     }
 
-    private static string? GetOwnCard(ulong owner, out AgentCharaCard.Storage* card)
+    internal static string? GetOwnCard(ulong owner, out AgentCharaCard.Storage* card)
     {
         card = null;
         if (owner == 0) return "Log in first.";

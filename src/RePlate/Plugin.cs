@@ -21,6 +21,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
     [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
+    [PluginService] internal static ICondition Condition { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
     [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
@@ -42,6 +43,7 @@ public sealed class Plugin : IDalamudPlugin
         Store = new PresetStore(Path.Combine(folder, "plates.json"));
         ImportOldLibrary(Path.Combine(folder, "library.json"));
         Reader = new PlateReader();
+        Editor = new PortraitEditor();
         images = new PlateImages(new ImageFiles(folder), () =>
         {
             var owner = CharacterId;
@@ -60,6 +62,7 @@ public sealed class Plugin : IDalamudPlugin
     public Configuration Configuration { get; }
     public PresetStore Store { get; }
     public PlateReader Reader { get; }
+    public PortraitEditor Editor { get; }
     private MainWindow MainWindow { get; }
 
     /// <summary>The logged-in character's content id, or 0.</summary>

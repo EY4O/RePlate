@@ -14,11 +14,19 @@ namespace RePlate.Windows;
 /// <summary>Your saved plates on the left, the selected one on the right.</summary>
 public sealed class PlatesTab(Plugin plugin, PlateImages images)
 {
+    // Long enough for the pose to load before the editor is read back.
+    private static readonly TimeSpan CheckDelay = TimeSpan.FromSeconds(1);
+
     private Task<CaptureResult>? capturing;
     private Task<string?>? opening;
+    private Task<ApplyResult>? applying;
+    private Task<ApplyResult>? checking;
+    private PlatePreset? applied;
+    private DateTime checkAt;
     private string newName = "";
     private string filter = "";
     private string status = "";
+    private bool statusWarning;
     private string rename = "";
     private bool renaming;
     private bool confirmDelete;
@@ -36,6 +44,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         }
 
         FinishCapture(owner);
+        FinishApply(owner);
         DrawToolbar();
         ImGui.Separator();
 
@@ -79,8 +88,15 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         if (status.Length > 0)
         {
             ImGui.SameLine();
-            ImGui.TextDisabled(status);
+            if (statusWarning) ImGui.TextColored(Theme.Warning, status);
+            else ImGui.TextDisabled(status);
         }
+    }
+
+    private void SetStatus(string text, bool warning = false)
+    {
+        status = text;
+        statusWarning = warning;
     }
 
     private void StartCapture()
@@ -89,7 +105,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         var race = Plugin.PlayerState.Race.RowId;
         var tribe = Plugin.PlayerState.Tribe.RowId;
         var sex = (byte)Plugin.PlayerState.Sex;
-        status = "Reading your plate...";
+        SetStatus("Reading your plate...");
         capturing = Plugin.Framework.RunOnFrameworkThread(() => plugin.Reader.Capture(owner, race, tribe, sex));
     }
 
@@ -97,18 +113,18 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
     {
         if (opening is { IsCompleted: true } open)
         {
-            status = open.IsCompletedSuccessfully ? open.Result ?? "" : "Couldn't open your plate.";
+            SetStatus(open.IsCompletedSuccessfully ? open.Result ?? "" : "Couldn't open your plate.");
             opening = null;
         }
         if (capturing is not { IsCompleted: true } done) return;
         capturing = null;
         if (!done.IsCompletedSuccessfully)
         {
-            status = "Couldn't read your plate.";
+            SetStatus("Couldn't read your plate.", true);
             Plugin.Log.Error(done.Exception!, "Reading the plate failed");
             return;
         }
-        status = done.Result.Message;
+        SetStatus(done.Result.Message, done.Result.Preset == null);
         if (done.Result.Preset is not { } preset || preset.Owner != owner) return;
 
         var name = PlatePreset.CleanName(newName);
@@ -118,6 +134,52 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         newName = "";
         filter = "";
         Select(preset.Id);
+    }
+
+    private void StartApply(PlatePreset preset)
+    {
+        var owner = plugin.CharacterId;
+        applied = preset;
+        SetStatus("Applying...");
+        applying = Plugin.Framework.RunOnFrameworkThread(() => plugin.Editor.Apply(preset, owner));
+    }
+
+    // Apply, wait for the pose to settle, then read the editor back.
+    private void FinishApply(ulong owner)
+    {
+        if (applying is { IsCompleted: true } apply)
+        {
+            applying = null;
+            if (!apply.IsCompletedSuccessfully)
+            {
+                SetStatus("Couldn't apply the portrait.", true);
+                Plugin.Log.Error(apply.Exception!, "Applying the portrait failed");
+                applied = null;
+                return;
+            }
+            SetStatus(apply.Result.Message, !apply.Result.Applied);
+            if (apply.Result.Applied) checkAt = DateTime.UtcNow + CheckDelay;
+            else applied = null;
+        }
+
+        if (applied is { } preset && checking == null && applying == null && DateTime.UtcNow >= checkAt)
+            checking = Plugin.Framework.RunOnFrameworkThread(() => plugin.Editor.Verify(preset, owner));
+
+        if (checking is not { IsCompleted: true } check) return;
+        checking = null;
+        if (!check.IsCompletedSuccessfully)
+        {
+            SetStatus("Couldn't check the editor.", true);
+            Plugin.Log.Error(check.Exception!, "Checking the portrait failed");
+        }
+        else
+        {
+            var result = check.Result;
+            var otherBody = applied is { } p && (p.Race != Plugin.PlayerState.Race.RowId || p.Sex != (byte)Plugin.PlayerState.Sex);
+            var note = result.Applied && otherBody ? " It was saved on a different race, so check the framing." : "";
+            SetStatus(result.Message + note, !result.Clean || note.Length > 0);
+        }
+        applied = null;
     }
 
     private void DrawList(List<PlatePreset> presets)
@@ -151,6 +213,12 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         }
 
         DrawHeader(preset);
+        ImGui.Spacing();
+        using (ImRaii.Disabled(preset.Portrait == null || applying != null || applied != null))
+        {
+            if (Theme.PrimaryButton("Apply portrait")) StartApply(preset);
+        }
+        Ui.TipAlways("Puts this portrait into Edit Portrait. Open it from your adventurer plate first, then press Save there when it looks right.");
         ImGui.Spacing();
         using (var table = ImRaii.Table("##summary", 2, ImGuiTableFlags.SizingStretchSame))
         {
