@@ -51,8 +51,9 @@ public sealed unsafe class PortraitEditor
             listOk[i] = list != null && list->GetSelectedItemIndex() == IndexOf(sets[i], currentIds[i]);
         }
         var presets = Dropdown(addon, 0);
-        var presetOk = presets != null &&
-                       presets->GetSelectedItemIndex() == state->GetPresetIndex(current.Background, current.Frame, current.Accent);
+        var shown = presets != null ? presets->GetSelectedItemIndex() : -2;
+        int byId = PresetIndex(state, current, false), byPosition = PresetIndex(state, current, true);
+        bool? presetByPosition = shown == byId ? false : shown == byPosition ? true : null;
         refreshPlayCheckbox = addon->PlayAnimationCheckbox != null && addon->PlayAnimationCheckbox->IsChecked == !view->IsAnimationPaused();
 
         var data = PortraitData.ToGame(portrait);
@@ -66,14 +67,14 @@ public sealed unsafe class PortraitEditor
         var ids = ListIds(portrait);
         for (var i = 0; i < sets.Length; i++)
             if (listOk[i] && IndexOf(sets[i], ids[i]) is >= 0 and var index) Dropdown(addon, i + 1)->SelectItem(index);
-        if (presetOk && state->GetPresetIndex(portrait.Background, portrait.Frame, portrait.Accent) is >= 0 and var presetIndex)
+        if (presetByPosition is { } position && PresetIndex(state, portrait, position) is >= 0 and var presetIndex)
             presets->SelectItem(presetIndex);
 
         state->SetHasChanged(true);
 
         var skipped = ListParts.Where((_, i) => !listOk[i]).ToList();
         if (sliderOk.Contains(false)) skipped.Add($"{sliderOk.Count(ok => !ok)} sliders");
-        if (!presetOk) skipped.Add("design preset");
+        if (presetByPosition == null) skipped.Add($"design preset (shows {shown}, by id {byId}, by position {byPosition})");
         if (skipped.Count > 0) Plugin.Log.Information($"Edit Portrait controls left as they were: {string.Join(", ", skipped)}");
         return new(true, "Applied. Checking...");
     }
@@ -93,12 +94,22 @@ public sealed unsafe class PortraitEditor
         var actual = PortraitData.FromGame(after, after.BannerBg, state->BannerEntry.BannerFrame, state->BannerEntry.BannerDecoration);
 
         var differences = PortraitCheck.Differences(portrait, actual);
-        if (differences.Count > 0)
-            return new(false, $"Some parts didn't take: {string.Join(", ", differences)}. Nothing was saved; press Cancel in the editor to undo.");
         var error = view->GetPortraitError();
-        if (error != CharaViewPortrait.PortraitError.None)
-            return new(true, $"Applied, but the game warns that {Warning(error)}. Adjust it before saving, or press Cancel.");
-        return new(true, "Applied. Look it over and press Save in the editor.", true);
+        var result = differences.Count > 0
+            ? new ApplyResult(false, $"Some parts didn't take: {string.Join(", ", differences)}. Nothing was saved; press Cancel in the editor to undo.")
+            : error != CharaViewPortrait.PortraitError.None
+                ? new ApplyResult(true, $"Applied, but the game warns that {Warning(error)}. Adjust it before saving, or press Cancel.")
+                : new ApplyResult(true, "Applied. Look it over and press Save in the editor.", true);
+        Plugin.Log.Information($"Applied \"{preset.Name}\": {result.Message}");
+        return result;
+    }
+
+    // The game's preset lookup may want row ids or list positions; Apply uses whichever matches what the list shows.
+    private static int PresetIndex(AgentBannerEditorState* s, PortraitSettings p, bool byPosition)
+    {
+        if (!byPosition) return s->GetPresetIndex(p.Background, p.Frame, p.Accent);
+        int background = IndexOf(&s->Backgrounds, p.Background), frame = IndexOf(&s->Frames, p.Frame), accent = IndexOf(&s->Accents, p.Accent);
+        return background < 0 || frame < 0 || accent < 0 ? -1 : s->GetPresetIndex((ushort)background, (ushort)frame, (ushort)accent);
     }
 
     private static string? GetEditor(ulong owner, out AgentBannerEditorState* state, out AddonBannerEditor* editor)
