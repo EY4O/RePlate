@@ -27,7 +27,8 @@ public sealed unsafe class UiProbe : IDisposable
         AddonEventType.DragDropRollOver, AddonEventType.DragDropRollOut,
     ];
 
-    private static readonly AddonEvent[] Events = [AddonEvent.PreReceiveEvent, AddonEvent.PostSetup, AddonEvent.PostRefresh, AddonEvent.PreFinalize];
+    private static readonly AddonEvent[] Events =
+        [AddonEvent.PreReceiveEvent, AddonEvent.PostReceiveEvent, AddonEvent.PostSetup, AddonEvent.PostRefresh, AddonEvent.PreFinalize];
     private const int Limit = 600;
     private static readonly TimeSpan Window = TimeSpan.FromMinutes(10);
 
@@ -78,6 +79,18 @@ public sealed unsafe class UiProbe : IDisposable
         if (!Running) return;
         try
         {
+            var addon = (AtkUnitBase*)args.Addon.Address;
+            var design = args.AddonName == "CharaCardDesignSetting";
+            // Edit Portrait refreshes every frame, which says nothing.
+            if (type == AddonEvent.PostRefresh && args.AddonName == "BannerEditor") return;
+            if (type == AddonEvent.PostReceiveEvent)
+            {
+                // After a design pick: which row each list now shows, and its label.
+                if (design && args is AddonReceiveEventArgs after && !Ignored.Contains(after.AtkEventType))
+                    Write($"{args.AddonName} after {after.AtkEventType} param={after.EventParam} | {Card()} | {Dropdowns(addon, false)}");
+                return;
+            }
+
             string detail;
             if (args is AddonReceiveEventArgs e)
             {
@@ -86,13 +99,12 @@ public sealed unsafe class UiProbe : IDisposable
             }
             else detail = type.ToString();
 
-            var addon = (AtkUnitBase*)args.Addon.Address;
             Write($"{args.AddonName} {detail} | {Card()}");
-            // Setup and refresh are where the design editor fills its lists; record their shape once each.
-            if (type is AddonEvent.PostSetup or AddonEvent.PostRefresh && args.AddonName is "CharaCardDesignSetting" or "CharaCardEditMenu")
+            if (type == AddonEvent.PostSetup && args.AddonName is "CharaCardDesignSetting" or "CharaCardEditMenu")
             {
                 Write($"{args.AddonName} lists: {Lists(addon)}");
                 Write($"{args.AddonName} values: {Values(addon)}");
+                if (design) Write($"{args.AddonName} dropdowns: {Dropdowns(addon, true)}");
             }
         }
         catch (Exception ex)
@@ -112,11 +124,48 @@ public sealed unsafe class UiProbe : IDisposable
 
     private static string Row(AddonReceiveEventArgs e)
     {
-        if (e.AtkEventData == nint.Zero || e.AtkEventType is not (AddonEventType.ListItemClick or AddonEventType.ListItemDoubleClick))
+        if (e.AtkEventData == nint.Zero || e.AtkEventType is not (AddonEventType.ListItemClick or AddonEventType.ListItemDoubleClick or
+            AddonEventType.ListItemHighlight))
             return "";
         var data = &((AtkEventData*)e.AtkEventData)->ListItemData;
-        return $" row={data->SelectedIndex} button={data->MouseButtonId}";
+        return $" row={data->SelectedIndex} hovered={data->HoveredItemIndex3} button={data->MouseButtonId}";
     }
+
+    // Each dropdown in the window: its selected row and that row's label. With labels, the first rows and the
+    // disabled count, which shows how rows line up with the game's sheets and whether locked items are listed.
+    private static string Dropdowns(AtkUnitBase* addon, bool labels)
+    {
+        if (addon == null) return "none";
+        var parts = new List<string>();
+        for (var i = 0; i < addon->UldManager.NodeListCount; i++)
+        {
+            var node = addon->UldManager.NodeList[i];
+            var component = node == null ? null : node->GetAsAtkComponentNode();
+            if (component == null || component->Component == null || component->Component->GetComponentType() != ComponentType.DropDownList)
+                continue;
+            var list = ((AtkComponentDropDownList*)component->Component)->List;
+            if (list == null) continue;
+            var count = list->GetItemCount();
+            var selected = ((AtkComponentDropDownList*)component->Component)->GetSelectedItemIndex();
+            var text = $"#{node->NodeId} sel={selected}/{count} {Label(list, selected)}";
+            if (labels)
+            {
+                var first = new List<string>();
+                var disabled = 0;
+                for (var row = 0; row < count; row++)
+                {
+                    if (list->GetItemDisabledState(row)) disabled++;
+                    if (row < 12) first.Add($"{row}:{Label(list, row)}");
+                }
+                text += $" disabled={disabled} [{string.Join(" ", first)}]";
+            }
+            parts.Add(text);
+        }
+        return string.Join(" || ", parts);
+    }
+
+    private static string Label(AtkComponentList* list, int row) =>
+        row < 0 || row >= list->GetItemCount() ? "-" : Quote(list->GetItemLabel(row).ToString());
 
     // The working design and which edit window the card thinks is open, so each click can be matched to its effect.
     private string Card()
