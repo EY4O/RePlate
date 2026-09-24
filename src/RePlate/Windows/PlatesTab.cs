@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using RePlate.Core.Plates;
@@ -244,12 +245,36 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         foreach (var preset in presets)
         {
             using var id = ImRaii.PushId(preset.Id.ToString());
+            if (preset.Favorite)
+            {
+                using (Plugin.PluginInterface.UiBuilder.IconFontHandle.Push())
+                using (ImRaii.PushColor(ImGuiCol.Text, Theme.AccentText))
+                    ImGui.TextUnformatted(FontAwesomeIcon.Star.ToIconString());
+                ImGui.SameLine();
+            }
             if (ImGui.Selectable(preset.Name, preset.Id == selected)) Select(preset.Id);
+            DrawListMenu(preset);
             var parts = (preset.Portrait != null ? "Portrait" : "") + (preset.Portrait != null && preset.Design != null ? " + " : "") +
                         (preset.Design != null ? "Design" : "");
             using (ImRaii.PushIndent())
                 ImGui.TextDisabled($"{Names.Race(preset.Race, preset.Sex)} · {preset.UpdatedAt.ToLocalTime():MM-dd-yyyy} · {parts}" +
                                    (preset.Imported ? " · Shared" : ""));
+        }
+    }
+
+    // Right-click a plate in the list.
+    private void DrawListMenu(PlatePreset preset)
+    {
+        using var menu = ImRaii.ContextPopupItem("##plateMenu");
+        if (!menu.Success) return;
+        using (ImRaii.Disabled(!plugin.Store.CanWrite))
+        {
+            if (ImGui.MenuItem(preset.Favorite ? "Remove from favorites" : "Add to favorites"))
+            {
+                // Not an edit to the plate itself, so it keeps its place among the others by date.
+                preset.Favorite = !preset.Favorite;
+                plugin.Store.Save();
+            }
         }
     }
 

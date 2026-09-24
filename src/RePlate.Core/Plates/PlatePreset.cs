@@ -75,6 +75,9 @@ public sealed class PlatePreset
     /// </summary>
     public bool Imported { get; set; }
 
+    /// <summary>Pinned to the top of the list.</summary>
+    public bool Favorite { get; set; }
+
     public static string CleanName(string name)
     {
         var trimmed = new string(name.Select(c => char.IsControl(c) ? ' ' : c).ToArray()).Trim();

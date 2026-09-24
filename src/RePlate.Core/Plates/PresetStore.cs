@@ -37,8 +37,9 @@ public sealed class PresetStore
     public bool Exists => File.Exists(path);
     public bool CanWrite => canWrite;
 
+    /// <summary>This character's plates: favourites first, then newest first.</summary>
     public IReadOnlyList<PlatePreset> For(ulong owner) =>
-        presets.Where(p => p.Owner == owner).OrderByDescending(p => p.UpdatedAt).ToList();
+        presets.Where(p => p.Owner == owner).OrderByDescending(p => p.Favorite).ThenByDescending(p => p.UpdatedAt).ToList();
 
     public PlatePreset? Get(Guid id) => presets.FirstOrDefault(p => p.Id == id);
 

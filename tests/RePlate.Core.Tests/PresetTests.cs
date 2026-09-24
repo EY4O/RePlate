@@ -97,6 +97,19 @@ public class PresetTests : IDisposable
     }
 
     [Fact]
+    public void FavouritesComeFirstAndAreKept()
+    {
+        var store = new PresetStore(path);
+        store.Add(Preset(1, "Old favourite", DateTimeOffset.UnixEpoch));
+        store.Add(Preset(1, "Newest", DateTimeOffset.UnixEpoch.AddDays(2)));
+        store.Add(Preset(1, "Newer", DateTimeOffset.UnixEpoch.AddDays(1)));
+        store.For(1).Single(p => p.Name == "Old favourite").Favorite = true;
+        store.Save();
+
+        Assert.Equal(["Old favourite", "Newest", "Newer"], new PresetStore(path).For(1).Select(p => p.Name));
+    }
+
+    [Fact]
     public void AnUnreadableFileIsLeftAlone()
     {
         File.WriteAllText(path, "{ broken");
