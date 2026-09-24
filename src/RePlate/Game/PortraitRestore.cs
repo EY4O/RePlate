@@ -76,7 +76,9 @@ public sealed unsafe class PortraitRestore(PortraitEditor editor)
         // Nothing here opens a dialog; one showing up means something went differently than planned.
         if (Visible("SelectYesno") || Visible("SelectOk"))
         {
-            Stop("The game asked something RePlate didn't expect, so it stopped. Answer it yourself.");
+            Stop(step == Step.WaitClose
+                ? "Edit Portrait asked about unsaved changes, so the save may not have gone through. Answer it yourself."
+                : "The game asked something RePlate didn't expect, so it stopped. Answer it yourself.");
             return;
         }
         if (Visible("CharaCardDesignSetting"))
