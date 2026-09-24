@@ -6,7 +6,10 @@ namespace RePlate.Game;
 public static unsafe class Clicks
 {
     /// <summary>Clicks the window's button whose own click event carries this number.</summary>
-    public static bool ButtonWithParam(AtkUnitBase* addon, int param)
+    public static bool ButtonWithParam(AtkUnitBase* addon, int param) => Button(FindButton(addon, param), param);
+
+    /// <summary>The window's button whose own click event carries this number, or null.</summary>
+    public static AtkComponentButton* FindButton(AtkUnitBase* addon, int param)
     {
         for (var i = 0; i < addon->UldManager.NodeListCount; i++)
         {
@@ -16,9 +19,9 @@ public static unsafe class Clicks
                 continue;
             for (var evt = node->AtkEventManager.Event; evt != null; evt = evt->NextEvent)
                 if (evt->State.EventType == AtkEventType.ButtonClick && evt->Param == param && evt->Listener != null)
-                    return Button((AtkComponentButton*)component->Component, param);
+                    return (AtkComponentButton*)component->Component;
         }
-        return false;
+        return null;
     }
 
     /// <summary>Sends the button's own registered click, when it carries this number, to whoever listens for it.</summary>

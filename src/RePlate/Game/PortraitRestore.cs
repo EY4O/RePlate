@@ -179,7 +179,8 @@ public sealed unsafe class PortraitRestore(PortraitEditor editor)
                     Stop(gone);
                     return;
                 }
-                var save = addon->SaveButton;
+                // Found by its click number: the struct's SaveButton field turned out to be the close button (click 8).
+                var save = Clicks.FindButton(&addon->AtkUnitBase, SaveButton);
                 // The editor can take a moment to notice the change and enable Save.
                 if ((save == null || !save->IsEnabled) && DateTime.UtcNow - stepStarted < TimeSpan.FromSeconds(3))
                 {
