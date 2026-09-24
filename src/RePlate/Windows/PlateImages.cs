@@ -17,7 +17,7 @@ namespace RePlate.Windows;
 public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, Vector2 Size)?>> plateWindow) : IDisposable
 {
     private sealed record Result(IDalamudTextureWrap? Picture, byte[]? Unsaved, bool Missing, string Message,
-        ImageCrop? Suggestion = null, Exception? Error = null);
+        ImageCrop? Suggestion = null, Exception? Error = null, bool Cropped = false);
 
     private readonly FileDialogManager dialog = new();
     private CancellationTokenSource? cancel;
@@ -31,6 +31,7 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
     private Guid selected;
     private string message = "";
     private bool missing;
+    private bool isCropped;
 
     public bool Busy => pending != null;
 
@@ -60,6 +61,7 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
         picture = result.Picture;
         unsaved = result.Unsaved;
         missing = result.Missing;
+        isCropped = result.Cropped;
         message = result.Message;
         ClearSelection();
         suggestion = result.Suggestion;
@@ -80,7 +82,7 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
                 });
             }
             ImGui.SameLine();
-            if (ImGui.Button("Capture game view")) StartCapture();
+            if (Step("Capture game view", unsaved == null)) StartCapture();
         }
         Ui.TipAlways("Takes a picture of the whole game screen. With your plate open, RePlate suggests its area to crop.");
 
@@ -89,10 +91,10 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
             var crop = suggestion ?? ImageCrop.FromSelection(dragStart, dragEnd, picture.Width, picture.Height);
             using (ImRaii.Disabled(crop == null || dragging))
             {
-                if (ImGui.Button("Crop") && crop is { } area) StartCrop(area);
+                if (Step("Crop", !isCropped) && crop is { } area) StartCrop(area);
             }
             ImGui.SameLine();
-            if (Theme.PrimaryButton("Use this picture")) StartSave();
+            if (Step("Use this picture", isCropped)) StartSave();
             ImGui.SameLine();
             if (ImGui.Button("Discard")) Run("Loading picture...", token => LoadAsync(selected, null, token));
             ImGui.TextDisabled(crop is { } size ? $"Selection {size.Width} x {size.Height}. Drag on the picture to change it." : "Drag on the picture to pick an area.");
@@ -102,6 +104,9 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
     }
 
     public void DrawDialog() => dialog.Draw();
+
+    // The accent moves along as you go: capture, then crop, then use it.
+    private static bool Step(string label, bool next) => next ? Theme.PrimaryButton(label) : ImGui.Button(label);
 
     private void DrawPicture()
     {
@@ -160,6 +165,7 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
         var shown = picture!;
         var bytes = unsaved!;
         var id = selected;
+        var wasCropped = isCropped;
         picture = null;
         unsaved = null;
         Run("Saving picture...", async token =>
@@ -171,7 +177,7 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
             }
             catch (Exception ex)
             {
-                return new Result(shown, bytes, false, "The picture couldn't be saved. Try again, or see /xllog.", Error: ex);
+                return new Result(shown, bytes, false, "The picture couldn't be saved. Try again, or see /xllog.", Error: ex, Cropped: wasCropped);
             }
         });
     }
@@ -284,7 +290,7 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
                 NewHeight = area.Height,
             }, leaveWrapOpen: true, debugName: "RePlate crop", cancellationToken: token).ConfigureAwait(false);
             var bytes = await EncodeAsync(cropped, token).ConfigureAwait(false);
-            var result = new Result(cropped, bytes, false, "Cropped. Use it, crop again, or discard.");
+            var result = new Result(cropped, bytes, false, "Cropped. Use it, crop again, or discard.", Cropped: true);
             cropped = null;
             source.Dispose();
             return result;
