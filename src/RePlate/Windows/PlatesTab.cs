@@ -274,10 +274,18 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
             using (ImRaii.Disabled(preset.Portrait == null))
             {
                 if (Theme.PrimaryButton("Restore portrait"))
-                    StartRun(() => plugin.Restore.Start(preset, owner), "Restoring the portrait...");
+                    StartRun(() => plugin.Restore.Start(preset, owner, PlatePart.Portrait), "Restoring the portrait...");
             }
             Ui.TipAlways("Opens Edit Portrait from your plate, puts this portrait in, checks it and saves it.");
             ImGui.SameLine();
+            using (ImRaii.Disabled(preset.Design == null))
+            {
+                if (Theme.PrimaryButton("Restore design"))
+                    StartRun(() => plugin.Restore.Start(preset, owner, PlatePart.Design), "Restoring the design...");
+            }
+            Ui.TipAlways("Opens Edit Plate Design from your plate, picks this design, checks it and saves it.");
+
+            // The same without saving, for looking it over first.
             using (ImRaii.Disabled(preset.Portrait == null))
             {
                 if (ImGui.Button("Apply portrait")) StartApply(preset);

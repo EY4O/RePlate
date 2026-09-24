@@ -50,6 +50,10 @@ public sealed unsafe class DesignEditor
     public string Progress => $"Applying the design... {clicks} clicks";
 
     private ApplyResult? finished;
+    private bool quiet;
+
+    /// <summary>The outcome of the last run started quietly, for a restore that drives it.</summary>
+    public ApplyResult? Last { get; private set; }
 
     /// <summary>The outcome of the last run, handed over once.</summary>
     public ApplyResult? TakeResult()
@@ -59,7 +63,7 @@ public sealed unsafe class DesignEditor
         return result;
     }
 
-    public ApplyResult Start(PlatePreset preset, ulong owner)
+    public ApplyResult Start(PlatePreset preset, ulong owner, bool quiet = false)
     {
         if (Running) return new(false, "Already applying a design.");
         if (preset.Design is not { } design || preset.Owner != owner) return new(false, "This plate has no design to apply.");
@@ -88,6 +92,8 @@ public sealed unsafe class DesignEditor
         clicks = 0;
         nextClick = DateTime.UtcNow;
         finished = null;
+        Last = null;
+        this.quiet = quiet;
         return new(true, Progress);
     }
 
@@ -230,7 +236,18 @@ public sealed unsafe class DesignEditor
     {
         if (target != null) Plugin.Log.Information($"Design apply ended after {clicks} clicks: {result.Message}");
         target = null;
-        finished = result;
+        if (quiet) Last = result;
+        else finished = result;
+    }
+
+    /// <summary>The parts of your plate's current design that differ from this one, by name.</summary>
+    public static List<string> Differences(AgentCharaCard.Storage* card, PlateDesign design)
+    {
+        var wanted = Ids(design.BasePlate, design.TopBorder, design.BottomBorder, design.Decorations);
+        var current = Ids(card);
+        var parts = Parts.Where((_, i) => current[i] != wanted[i]).Select(p => p.Name).ToList();
+        if (card->InvertPortraitPlacement != design.InvertPortraitPlacement) parts.Add("layout");
+        return parts;
     }
 
     private void Click(AtkUnitBase* addon, int param)

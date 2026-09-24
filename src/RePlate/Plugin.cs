@@ -47,7 +47,7 @@ public sealed class Plugin : IDalamudPlugin
         Reader = new PlateReader();
         Editor = new PortraitEditor();
         Designs = new DesignEditor();
-        Restore = new PortraitRestore(Editor);
+        Restore = new PlateRestore(Editor, Designs);
         images = new PlateImages(new ImageFiles(folder), () =>
         {
             var owner = CharacterId;
@@ -68,7 +68,7 @@ public sealed class Plugin : IDalamudPlugin
     public PlateReader Reader { get; }
     public PortraitEditor Editor { get; }
     public DesignEditor Designs { get; }
-    public PortraitRestore Restore { get; }
+    public PlateRestore Restore { get; }
     private MainWindow MainWindow { get; }
 
     /// <summary>The logged-in character's content id, or 0.</summary>
