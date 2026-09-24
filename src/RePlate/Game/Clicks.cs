@@ -37,6 +37,17 @@ public static unsafe class Clicks
         return false;
     }
 
+    /// <summary>What a button looks like to a click, for the log when one can't be pressed.</summary>
+    public static string Describe(AtkComponentButton* button)
+    {
+        if (button == null) return "no button";
+        if (button->OwnerNode == null) return $"enabled={button->IsEnabled}, no node";
+        var events = new System.Collections.Generic.List<string>();
+        for (var evt = button->OwnerNode->AtkResNode.AtkEventManager.Event; evt != null; evt = evt->NextEvent)
+            events.Add($"{evt->State.EventType}/{evt->Param}");
+        return $"node #{button->OwnerNode->AtkResNode.NodeId}, enabled={button->IsEnabled}, events [{string.Join(", ", events)}]";
+    }
+
     /// <summary>The first list in the window, for menus that have just one.</summary>
     public static AtkComponentList* FirstList(AtkUnitBase* addon)
     {

@@ -179,8 +179,16 @@ public sealed unsafe class PortraitRestore(PortraitEditor editor)
                     Stop(gone);
                     return;
                 }
-                if (!Clicks.Button(addon->SaveButton, SaveButton))
+                var save = addon->SaveButton;
+                // The editor can take a moment to notice the change and enable Save.
+                if ((save == null || !save->IsEnabled) && DateTime.UtcNow - stepStarted < TimeSpan.FromSeconds(3))
                 {
+                    Wait(TimeSpan.FromMilliseconds(250));
+                    return;
+                }
+                if (!Clicks.Button(save, SaveButton))
+                {
+                    Plugin.Log.Information($"Save button: {Clicks.Describe(save)}");
                     Stop("Edit Portrait's Save button wasn't available. Nothing was saved.");
                     return;
                 }
