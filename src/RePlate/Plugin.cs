@@ -46,6 +46,7 @@ public sealed class Plugin : IDalamudPlugin
         ImportOldLibrary(Path.Combine(folder, "library.json"));
         Reader = new PlateReader();
         Editor = new PortraitEditor();
+        Designs = new DesignEditor();
         images = new PlateImages(new ImageFiles(folder), () =>
         {
             var owner = CharacterId;
@@ -65,6 +66,7 @@ public sealed class Plugin : IDalamudPlugin
     public PresetStore Store { get; }
     public PlateReader Reader { get; }
     public PortraitEditor Editor { get; }
+    public DesignEditor Designs { get; }
     private MainWindow MainWindow { get; }
 
     /// <summary>The logged-in character's content id, or 0.</summary>
@@ -102,6 +104,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         images.Update();
         probe.Update();
+        Designs.Update();
         if (dirtySince is { } since && DateTime.UtcNow - since >= SaveDelay)
         {
             dirtySince = null;
