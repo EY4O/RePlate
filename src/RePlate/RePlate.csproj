@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.1.0.0</Version>
+    <Author>Looneth</Author>
+    <Name>RePlate</Name>
+    <Punchline>Save and restore your adventurer plate.</Punchline>
+    <Description>Save your adventurer plate's portrait and design, and put them back in one click.</Description>
+    <Tags>adventurer plate;portrait;preset</Tags>
+    <RepoUrl>https://github.com/EY4O/RePlate</RepoUrl>
+    <IconUrl>https://ey4o.github.io/XIV-Plugins/assets/replate-icon.png</IconUrl>
+    <AcceptsFeedback>false</AcceptsFeedback>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Dalamud shows a dev plugin's icon from images/icon.png next to the DLL; the packager leaves it out of the zip. -->
+    <None Include="..\..\images\icon.png" Link="images\icon.png" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The logo drawn inside the plugin, which does ship in the zip. -->
+    <None Include="..\..\images\logo.png" Link="images\logo.png" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RePlate.Core\RePlate.Core.csproj" />
+  </ItemGroup>
+</Project>

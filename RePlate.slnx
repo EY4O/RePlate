@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RePlate.Core/RePlate.Core.csproj" />
+    <Project Path="src/RePlate/RePlate.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RePlate.Core.Tests/RePlate.Core.Tests.csproj" />
+  </Folder>
+</Solution>
