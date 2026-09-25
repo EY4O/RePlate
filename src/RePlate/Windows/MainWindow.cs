@@ -14,13 +14,15 @@ public sealed class MainWindow : ThemedWindow
     private const string KoFiUrl = "https://ko-fi.com/looneth";
 
     private readonly PlatesTab plates;
+    private readonly PortraitsTab portraits;
     private readonly AboutTab about;
     private float supportWidth;
     private bool showPlates;
 
-    public MainWindow(Plugin plugin, PlatesTab plates) : base("RePlate###RePlateMain")
+    public MainWindow(Plugin plugin, PlatesTab plates, PortraitsTab portraits) : base("RePlate###RePlateMain")
     {
         this.plates = plates;
+        this.portraits = portraits;
         about = new AboutTab(plugin);
         Size = new Vector2(820, 560);
         SizeCondition = ImGuiCond.FirstUseEver;
@@ -61,11 +63,7 @@ public sealed class MainWindow : ThemedWindow
         }
         using (var tab = ImRaii.TabItem("Portraits"))
         {
-            if (tab.Success)
-            {
-                ImGuiHelpers.ScaledDummy(6);
-                ImGui.TextDisabled("Saving and restoring your gear sets' portraits is coming here later.");
-            }
+            if (tab.Success) portraits.Draw();
         }
         using (var tab = ImRaii.TabItem("About"))
         {

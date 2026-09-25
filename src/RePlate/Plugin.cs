@@ -32,6 +32,8 @@ public sealed class Plugin : IDalamudPlugin
 
     private readonly WindowSystem windows = new("RePlate");
     private readonly PlateImages images;
+    private readonly PlateImages portraitImages;
+    private readonly Thumbnails thumbnails;
     private readonly SettingsWindow settings;
     private readonly WelcomeWindow welcome;
     private DateTime? dirtySince;
@@ -56,8 +58,10 @@ public sealed class Plugin : IDalamudPlugin
             var owner = CharacterId;
             return Framework.RunOnFrameworkThread(() => Reader.PlateWindow(owner));
         }, Guide);
+        portraitImages = new PlateImages(Pictures, () => Framework.RunOnFrameworkThread(PortraitEditor.Window), null, "Edit Portrait window");
+        thumbnails = new Thumbnails(Pictures);
 
-        MainWindow = new MainWindow(this, new PlatesTab(this, images));
+        MainWindow = new MainWindow(this, new PlatesTab(this, images), new PortraitsTab(this, portraitImages, thumbnails));
         settings = new SettingsWindow(this);
         welcome = new WelcomeWindow(this);
         windows.AddWindow(MainWindow);
@@ -133,11 +137,13 @@ public sealed class Plugin : IDalamudPlugin
     {
         windows.Draw();
         images.DrawDialog();
+        portraitImages.DrawDialog();
     }
 
     private void OnUpdate(IFramework framework)
     {
         images.Update();
+        portraitImages.Update();
         Designs.Update();
         Restore.Update();
         GearsetRun.Update();
@@ -176,6 +182,8 @@ public sealed class Plugin : IDalamudPlugin
         CommandManager.RemoveHandler(Command);
         windows.RemoveAllWindows();
         images.Dispose();
+        portraitImages.Dispose();
+        thumbnails.Dispose();
         if (dirtySince != null) Configuration.Save();
     }
 }

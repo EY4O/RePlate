@@ -14,7 +14,12 @@ using RePlate.Core.Images;
 namespace RePlate.Windows;
 
 /// <summary>The selected plate's picture: loading it, attaching a PNG, or capturing and cropping the game view.</summary>
-public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, Vector2 Size)?>> plateWindow, Guide guide) : IDisposable
+/// <remarks>
+/// One for plates and one for portraits. <paramref name="plateWindow"/> finds the window worth suggesting as a crop
+/// (the plate, or Edit Portrait), and <paramref name="guide"/> is null where the tour doesn't point.
+/// </remarks>
+public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, Vector2 Size)?>> plateWindow, Guide? guide,
+    string subject = "plate") : IDisposable
 {
     private sealed record Result(IDalamudTextureWrap? Picture, byte[]? Unsaved, bool Missing, string Message,
         ImageCrop? Suggestion = null, Exception? Error = null, bool Cropped = false, bool Saved = false);
@@ -89,7 +94,7 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
             }
             ImGui.SameLine();
             if (Step("Capture game view", unsaved == null)) StartCapture();
-            guide.Mark(GuideTarget.Capture);
+            guide?.Mark(GuideTarget.Capture);
         }
         Ui.TipAlways("Takes a picture of the whole game screen. With your plate open, RePlate suggests its area to crop.");
 
@@ -99,11 +104,11 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
             using (ImRaii.Disabled(crop == null || dragging))
             {
                 if (Step("Crop", !isCropped) && crop is { } area) StartCrop(area);
-                guide.Mark(GuideTarget.Crop);
+                guide?.Mark(GuideTarget.Crop);
             }
             ImGui.SameLine();
             if (Step("Use this picture", isCropped)) StartSave();
-            guide.Mark(GuideTarget.UsePicture);
+            guide?.Mark(GuideTarget.UsePicture);
             ImGui.SameLine();
             if (ImGui.Button("Discard")) Run("Loading picture...", token => LoadAsync(selected, null, token));
             ImGui.TextDisabled(crop is { } size ? $"Selection {size.Width} x {size.Height}. Drag on the picture to change it." : "Drag on the picture to pick an area.");
@@ -267,8 +272,8 @@ public sealed class PlateImages(ImageFiles files, Func<Task<(Vector2 Position, V
             var crop = before is { } b ? ImageCrop.FromWindow(b.Position, b.Size, after?.Size, after?.Position, screen, texture.Width, texture.Height) : null;
             var bytes = await EncodeAsync(texture, token).ConfigureAwait(false);
             var result = new Result(texture, bytes, false, crop == null
-                ? "Drag on the picture to pick the plate, then crop."
-                : "Your plate's area is marked. Decorations can stick out, so adjust it if needed.", crop);
+                ? $"Drag on the picture to pick the {subject}, then crop."
+                : $"The {subject}'s area is marked. Adjust it if needed, then crop.", crop);
             texture = null;
             return result;
         }

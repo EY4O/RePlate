@@ -24,7 +24,7 @@ public sealed class AboutTab(Plugin plugin)
         (string Label, Action Click, string Tip)[] buttons =
         [
             ("Welcome guide", plugin.OpenWelcome, "A short tour of what RePlate does."),
-            ("Settings", plugin.ToggleSettings, "Pausing before saving, and the look."),
+            ("Settings", plugin.ToggleSettings, "Pausing before saving, backups, and the look."),
             ("Plugin site", () => Ui.OpenUrl(SiteUrl), SiteUrl),
             ("Source code", () => Ui.OpenUrl(SourceUrl), SourceUrl + "\nMIT licence."),
         ];

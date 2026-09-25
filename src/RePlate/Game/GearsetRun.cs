@@ -89,9 +89,11 @@ public sealed class GearsetRun(PortraitEditor portraits)
         }
         if (step is Step.Open or Step.WaitEditor or Step.Apply or Step.Check && DateTime.UtcNow - stepStarted > StepLimit)
         {
-            Stop(step == Step.Open || step == Step.WaitEditor
-                ? $"{Title(gearset)}'s Edit Portrait didn't open, so RePlate stopped."
-                : "That took too long, so RePlate stopped. Edit Portrait is left open; nothing was saved.");
+            Stop(step == Step.Open && Visible("BannerEditor")
+                ? $"Another Edit Portrait is still open, so {Title(gearset)}'s couldn't open. Close it and start again."
+                : step is Step.Open or Step.WaitEditor
+                    ? $"{Title(gearset)}'s Edit Portrait didn't open, so RePlate stopped."
+                    : "That took too long, so RePlate stopped. Edit Portrait is left open; nothing was saved.");
             return;
         }
 

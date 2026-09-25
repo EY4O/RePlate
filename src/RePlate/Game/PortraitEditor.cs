@@ -166,6 +166,13 @@ public sealed unsafe class PortraitEditor
         return null;
     }
 
+    /// <summary>Where Edit Portrait is on screen, for suggesting a crop; null when it isn't open.</summary>
+    public static (System.Numerics.Vector2 Position, System.Numerics.Vector2 Size)? Window()
+    {
+        var addon = Plugin.GameGui.GetAddonByName("BannerEditor");
+        return addon.IsNull || !addon.IsVisible ? null : (addon.Position, addon.ScaledSize);
+    }
+
     /// <summary>True when the Edit Portrait asked for is open and ready to take a portrait.</summary>
     public static bool Ready(ulong owner, int gearset = -1) => GetEditor(owner, out _, out _, gearset) == null;
 
