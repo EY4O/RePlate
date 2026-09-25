@@ -142,17 +142,23 @@ public sealed class Guide(Plugin plugin, Tour tour)
         var min = ImGui.GetItemRectMin();
         var max = ImGui.GetItemRectMax();
         var scale = ImGuiHelpers.GlobalScale;
-        // Drawn with RePlate's own window, not over everything, so another window in front of RePlate covers it too.
-        // The clip is widened so the bubble can still hang past the window's edge.
-        var draw = ImGui.GetWindowDrawList();
-        draw.PushClipRectFullScreen();
         var accent = Theme.Accent;
 
-        // A ring that breathes, with a fainter halo outside it.
+        // A ring that breathes, with a fainter halo outside it, drawn with RePlate's own window. The clip is widened so
+        // the halo isn't cut off at a child window's edge.
+        var window = ImGui.GetWindowDrawList();
+        window.PushClipRectFullScreen();
         var pulse = 0.55f + 0.45f * MathF.Sin((float)ImGui.GetTime() * 4f);
         var ring = new Vector2(3 * scale);
-        draw.AddRect(min - ring, max + ring, ImGui.GetColorU32(accent with { W = pulse }), 6 * scale, 2.5f * scale);
-        draw.AddRect(min - ring * 2, max + ring * 2, ImGui.GetColorU32(accent with { W = pulse * 0.35f }), 8 * scale, 2f * scale);
+        window.AddRect(min - ring, max + ring, ImGui.GetColorU32(accent with { W = pulse }), 6 * scale, 2.5f * scale);
+        window.AddRect(min - ring * 2, max + ring * 2, ImGui.GetColorU32(accent with { W = pulse * 0.35f }), 8 * scale, 2f * scale);
+        window.PopClipRect();
+
+        // The bubble goes over everything, so nothing RePlate draws later shows through it. That means it would also
+        // float over other windows, so it's only shown while RePlate is the window in use (or none is).
+        var ours = ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
+        if (!ours && ImGui.IsWindowFocused(ImGuiFocusedFlags.AnyWindow)) return;
+        var draw = ImGui.GetForegroundDrawList();
 
         // The bubble sits under the button with an arrow pointing up at it, or above when there's no room below.
         var text = Steps[Current].Bubble;
@@ -168,11 +174,10 @@ public sealed class Guide(Plugin plugin, Tour tour)
         var edge = below ? top.Y : top.Y + size.Y;
         var arrow = 6 * scale;
 
-        draw.AddRectFilled(top, top + size, ImGui.GetColorU32(new Vector4(0.10f, 0.11f, 0.14f, 0.97f)), 6 * scale);
+        draw.AddRectFilled(top, top + size, ImGui.GetColorU32(new Vector4(0.10f, 0.11f, 0.14f, 1f)), 6 * scale);
         draw.AddRect(top, top + size, ImGui.GetColorU32(accent), 6 * scale, 1.5f * scale);
         draw.AddTriangleFilled(new Vector2(tip.X - arrow, edge), new Vector2(tip.X + arrow, edge), tip, ImGui.GetColorU32(accent));
         draw.AddText(ImGui.GetFont(), ImGui.GetFontSize(), top + padding, ImGui.GetColorU32(new Vector4(1, 1, 1, 1)), text, wrap);
-        draw.PopClipRect();
     }
 
     private void Go(int step)
