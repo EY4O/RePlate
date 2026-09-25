@@ -173,6 +173,12 @@ public sealed unsafe class PortraitEditor
     /// </summary>
     public static (System.Numerics.Vector2 Position, System.Numerics.Vector2 Size)? Window()
     {
+        var looked = new List<string>();
+
+        // The preview beside the Portraits list can be a window of its own.
+        var preview = Plugin.GameGui.GetAddonByName("BannerPreview");
+        if (!preview.IsNull && preview.IsVisible && LargestPicture((AtkUnitBase*)preview.Address, looked) is { } shown) return shown;
+
         // The Portraits window has no struct of its own, so it's found through its agent.
         var pointer = Plugin.GameGui.GetAgentById((int)AgentId.BannerList);
         var portraits = pointer.IsNull ? null : (AgentInterface*)pointer.Address;
@@ -180,35 +186,53 @@ public sealed unsafe class PortraitEditor
         if (portraits != null && portraits->IsAgentActive() && stage != null)
         {
             var unit = stage->RaptureAtkUnitManager->GetAddonById((ushort)portraits->AddonId);
-            if (unit != null && unit->IsVisible && LargestPicture(unit) is { } preview) return preview;
+            if (unit != null && unit->IsVisible && LargestPicture(unit, looked) is { } listed) return listed;
         }
 
         var editor = Plugin.GameGui.GetAddonByName("BannerEditor");
-        if (editor.IsNull || !editor.IsVisible) return null;
-        return LargestPicture((AtkUnitBase*)editor.Address) ?? (editor.Position, editor.ScaledSize);
+        if (!editor.IsNull && editor.IsVisible && LargestPicture((AtkUnitBase*)editor.Address, looked) is { } editing) return editing;
+
+        // Nothing fitted: say what was there, so the right picture can be found.
+        Plugin.Log.Information($"No portrait found for the crop. Portraits agent {(portraits == null ? "missing" : portraits->IsAgentActive() ? "open" : "closed")}; " +
+                               (looked.Count == 0 ? "no portrait windows open." : string.Join("; ", looked)));
+        return editor.IsNull || !editor.IsVisible ? null : (editor.Position, editor.ScaledSize);
     }
 
-    // The preview is the window's largest picture; anything much smaller is an icon or a border.
-    private static (System.Numerics.Vector2 Position, System.Numerics.Vector2 Size)? LargestPicture(AtkUnitBase* unit)
+    // The preview is the window's largest picture, looking inside its parts too; anything much smaller is an icon or a
+    // border. What was seen goes into `looked` for the log.
+    private static (System.Numerics.Vector2 Position, System.Numerics.Vector2 Size)? LargestPicture(AtkUnitBase* unit, List<string> looked)
     {
-        Bounds best = default;
-        var bestArea = 0;
-        uint bestNode = 0;
-        for (var i = 0; i < unit->UldManager.NodeListCount; i++)
+        var pictures = new List<(uint Node, Bounds Bounds)>();
+        Pictures(&unit->UldManager, pictures, 0);
+        var best = pictures.OrderByDescending(p => p.Bounds.Width * p.Bounds.Height).FirstOrDefault();
+        var biggest = string.Join(", ", pictures.OrderByDescending(p => p.Bounds.Width * p.Bounds.Height).Take(4)
+            .Select(p => $"#{p.Node} {p.Bounds.Width}x{p.Bounds.Height}"));
+        var size = unit->RootNode == null ? "" : $" {unit->RootNode->Width}x{unit->RootNode->Height}";
+        looked.Add($"{unit->NameString}{size}: {(biggest.Length > 0 ? biggest : "no pictures")}");
+        if (best.Bounds.Width * best.Bounds.Height < 150 * 150) return null;
+        Plugin.Log.Information($"Portrait for the crop: {unit->NameString} node #{best.Node}, {best.Bounds.Width}x{best.Bounds.Height} " +
+                               $"at {best.Bounds.Pos1.X},{best.Bounds.Pos1.Y}.");
+        return (new System.Numerics.Vector2(best.Bounds.Pos1.X, best.Bounds.Pos1.Y),
+                new System.Numerics.Vector2(best.Bounds.Width, best.Bounds.Height));
+    }
+
+    private static void Pictures(AtkUldManager* manager, List<(uint, Bounds)> found, int depth)
+    {
+        if (depth > 4) return;
+        for (var i = 0; i < manager->NodeListCount; i++)
         {
-            var node = unit->UldManager.NodeList[i];
-            if (node == null || node->Type != NodeType.Image || !node->IsVisible()) continue;
-            Bounds bounds;
-            node->GetBounds(&bounds);
-            var area = bounds.Width * bounds.Height;
-            if (area <= bestArea) continue;
-            best = bounds;
-            bestArea = area;
-            bestNode = node->NodeId;
+            var node = manager->NodeList[i];
+            if (node == null || !node->IsVisible()) continue;
+            if (node->Type == NodeType.Image)
+            {
+                Bounds bounds;
+                node->GetBounds(&bounds);
+                found.Add((node->NodeId, bounds));
+                continue;
+            }
+            var component = node->GetAsAtkComponentNode();
+            if (component != null && component->Component != null) Pictures(&component->Component->UldManager, found, depth + 1);
         }
-        if (bestArea < 150 * 150) return null;
-        Plugin.Log.Information($"Portrait for the crop: {unit->NameString} node #{bestNode}, {best.Width}x{best.Height} at {best.Pos1.X},{best.Pos1.Y}.");
-        return (new System.Numerics.Vector2(best.Pos1.X, best.Pos1.Y), new System.Numerics.Vector2(best.Width, best.Height));
     }
 
     /// <summary>True when the Edit Portrait asked for is open and ready to take a portrait.</summary>
