@@ -106,7 +106,10 @@ public sealed class Guide(Plugin plugin)
         var min = ImGui.GetItemRectMin();
         var max = ImGui.GetItemRectMax();
         var scale = ImGuiHelpers.GlobalScale;
-        var draw = ImGui.GetForegroundDrawList();
+        // Drawn with RePlate's own window, not over everything, so another window in front of RePlate covers it too.
+        // The clip is widened so the bubble can still hang past the window's edge.
+        var draw = ImGui.GetWindowDrawList();
+        draw.PushClipRectFullScreen();
         var accent = Theme.Accent;
 
         // A ring that breathes, with a fainter halo outside it.
@@ -133,6 +136,7 @@ public sealed class Guide(Plugin plugin)
         draw.AddRect(top, top + size, ImGui.GetColorU32(accent), 6 * scale, 1.5f * scale);
         draw.AddTriangleFilled(new Vector2(tip.X - arrow, edge), new Vector2(tip.X + arrow, edge), tip, ImGui.GetColorU32(accent));
         draw.AddText(ImGui.GetFont(), ImGui.GetFontSize(), top + padding, ImGui.GetColorU32(new Vector4(1, 1, 1, 1)), text, wrap);
+        draw.PopClipRect();
     }
 
     private void Go(int step)

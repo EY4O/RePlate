@@ -67,9 +67,9 @@ public static class LibraryBackup
 
     /// <summary>
     /// Adds a backup to this character. Anything already here is left alone; a plate that belongs to another character
-    /// comes in as a copy with a new id, so both keep their own.
+    /// comes in as a copy with a new id, so both keep their own. Changes the store, so run it where the store is used.
     /// </summary>
-    public static async Task<BackupImport> AddToAsync(PresetStore store, ImageFiles files, BackupContents backup, ulong owner, CancellationToken token)
+    public static BackupImport AddTo(PresetStore store, ImageFiles files, BackupContents backup, ulong owner)
     {
         int added = 0, alreadyHere = 0;
         foreach (var preset in backup.Presets)
@@ -85,7 +85,7 @@ public static class LibraryBackup
                 preset.Id = Guid.NewGuid();
             }
             preset.Owner = owner;
-            if (backup.Pictures.TryGetValue(id, out var png)) await files.SaveAsync(preset.Id, png, token).ConfigureAwait(false);
+            if (backup.Pictures.TryGetValue(id, out var png)) files.Save(preset.Id, png);
             store.Add(preset);
             added++;
         }

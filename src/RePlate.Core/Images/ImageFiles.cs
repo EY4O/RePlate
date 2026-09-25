@@ -46,6 +46,16 @@ public sealed class ImageFiles(string directory)
         File.Move(temporary, path, true);
     }
 
+    /// <summary>The same, all at once, for adding a backup.</summary>
+    public void Save(Guid id, byte[] png)
+    {
+        ReadHeader(png);
+        var path = PathFor(id);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllBytes(path + ".tmp", png);
+        File.Move(path + ".tmp", path, true);
+    }
+
     public void Delete(Guid id)
     {
         var path = PathFor(id);

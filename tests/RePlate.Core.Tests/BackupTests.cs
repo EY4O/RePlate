@@ -67,7 +67,7 @@ public class BackupTests : IDisposable
     }
 
     [Fact]
-    public async Task ImportingGivesEverythingToThisCharacter()
+    public void ImportingGivesEverythingToThisCharacter()
     {
         var files = new ImageFiles(Path.Combine(folder, "to"));
         var store = new PresetStore(Path.Combine(folder, "plates.json"));
@@ -80,7 +80,7 @@ public class BackupTests : IDisposable
         sameIdAsMain.Id = mains.Id;
         var backup = new BackupContents([mine, theirs, sameIdAsMain], new() { [theirs.Id] = Png(10) });
 
-        var result = await LibraryBackup.AddToAsync(store, files, backup, 2, TestContext.Current.CancellationToken);
+        var result = LibraryBackup.AddTo(store, files, backup, 2);
 
         Assert.Equal(new BackupImport(2, 1), result);
         var alt = store.For(2);

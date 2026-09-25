@@ -289,7 +289,29 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
                 preset.Favorite = !preset.Favorite;
                 plugin.Store.Save();
             }
+            // Rename and Delete use the ones on the plate itself, so there's one of each to get right.
+            if (ImGui.MenuItem("Rename"))
+            {
+                Select(preset.Id);
+                rename = preset.Name;
+                renaming = true;
+            }
         }
+        if (ImGui.MenuItem("Share")) CopyShareCode(preset);
+        using (ImRaii.Disabled(!plugin.Store.CanWrite))
+        {
+            if (ImGui.MenuItem("Delete"))
+            {
+                Select(preset.Id);
+                confirmDelete = true;
+            }
+        }
+    }
+
+    private void CopyShareCode(PlatePreset preset)
+    {
+        ImGui.SetClipboardText(ShareCode.Encode(preset));
+        SetStatus("Share code copied. Paste it wherever you like.");
     }
 
     private void DrawDetail(PlatePreset? preset)
@@ -391,11 +413,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
                 confirmDelete = false;
             }
             ImGui.SameLine();
-            if (ImGui.SmallButton("Share"))
-            {
-                ImGui.SetClipboardText(ShareCode.Encode(preset));
-                SetStatus("Share code copied. Paste it wherever you like.");
-            }
+            if (ImGui.SmallButton("Share")) CopyShareCode(preset);
             Ui.Tip("Copies a code anyone with RePlate can import. It holds this plate's portrait and design, " +
                    "not who you are, and not its picture.");
             ImGui.SameLine();

@@ -49,7 +49,8 @@ public sealed class Plugin : IDalamudPlugin
         Designs = new DesignEditor();
         Restore = new PlateRestore(Editor, Designs, () => Configuration.PauseBeforeSave);
         Guide = new Guide(this);
-        images = new PlateImages(new ImageFiles(folder), () =>
+        Pictures = new ImageFiles(folder);
+        images = new PlateImages(Pictures, () =>
         {
             var owner = CharacterId;
             return Framework.RunOnFrameworkThread(() => Reader.PlateWindow(owner));
@@ -80,6 +81,7 @@ public sealed class Plugin : IDalamudPlugin
     public DesignEditor Designs { get; }
     public PlateRestore Restore { get; }
     public Guide Guide { get; }
+    public ImageFiles Pictures { get; }
     private MainWindow MainWindow { get; }
 
     /// <summary>The logged-in character's content id, or 0.</summary>

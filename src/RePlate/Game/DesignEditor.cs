@@ -83,8 +83,15 @@ public sealed unsafe class DesignEditor
         for (var i = 0; i < Parts.Length; i++)
         {
             var list = List(addon, Parts[i]);
-            if (list == null || Label(list, i, SelectedRow(addon, Parts[i])) != NameOf(i, current[i]))
+            if (list == null)
                 return new(false, "The design window isn't laid out the way RePlate expects, so nothing was changed.");
+            // Names the list and both texts, so a mismatch (a new patch, another language) is easy to see.
+            if (Label(list, i, SelectedRow(addon, Parts[i])) is var shown && shown != NameOf(i, current[i]))
+            {
+                Plugin.Log.Information($"Design list {Parts[i].Name}: shows \"{shown}\", expected \"{NameOf(i, current[i])}\" (id {current[i]}).");
+                return new(false, $"The {Parts[i].Name} list shows \"{shown}\" where RePlate expected \"{Title(i, current[i])}\", " +
+                                  "so nothing was changed.");
+            }
             if (Rows(list, i, wanted[i]).Count == 0) locked.Add($"{Parts[i].Name} {Title(i, wanted[i])}");
         }
         // Your own plates are refused when something's missing; a shared one keeps your choice for it instead.
@@ -365,5 +372,19 @@ public sealed unsafe class DesignEditor
         return Clean(Encoding.UTF8.GetString(list->GetItemLabel(row).AsSpan()));
     }
 
-    private static string Clean(string text) => new string(text.Where(c => !char.IsControl(c)).ToArray()).Trim();
+    // Labels and sheet names are compared after this, so formatting the game adds in some languages doesn't matter:
+    // text codes (between \u0002 and \u0003), soft hyphens (German), zero-width and control characters, spacing.
+    private static string Clean(string text)
+    {
+        var kept = new StringBuilder(text.Length);
+        var inCode = false;
+        foreach (var c in text.Normalize(NormalizationForm.FormC))
+        {
+            if (c == '\u0002') inCode = true;
+            else if (c == '\u0003') inCode = false;
+            else if (!inCode && !char.IsControl(c) && c is not ('­' or '​' or '‌' or '‍' or '﻿'))
+                kept.Append(char.IsWhiteSpace(c) ? ' ' : c);
+        }
+        return string.Join(' ', kept.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    }
 }
