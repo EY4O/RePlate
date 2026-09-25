@@ -107,13 +107,16 @@ public sealed class SettingsWindow : ThemedWindow
                 {
                     if (ok) Start("Reading the backup...", Task.Run(() => ReadBackup(path)));
                 });
-            if (ImGui.Button("Bring over HaselTweaks portraits"))
+            if (Plugin.HaselTweaksInstalled())
             {
-                pending = null;
-                Start("Reading HaselTweaks' portraits...", Task.Run(ReadHaselTweaks));
+                if (ImGui.Button("Bring over HaselTweaks portraits"))
+                {
+                    pending = null;
+                    Start("Reading HaselTweaks' portraits...", Task.Run(ReadHaselTweaks));
+                }
+                Ui.TipAlways("Adds the portraits saved in HaselTweaks' Portrait Helper, with their pictures, to this character. " +
+                             "HaselTweaks' own presets aren't changed.");
             }
-            Ui.TipAlways("Adds the portraits saved in HaselTweaks' Portrait Helper, with their pictures, to this character. " +
-                         "HaselTweaks' own presets aren't changed.");
         }
 
         if (pendingHasel is { } hasel) DrawHaselTweaks(hasel, owner);

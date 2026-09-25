@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
@@ -90,6 +91,12 @@ public sealed class Plugin : IDalamudPlugin
     public Guide Guide { get; }
     public Guide PortraitGuide { get; }
     public ImageFiles Pictures { get; }
+
+    /// <summary>
+    /// Whether HaselTweaks is installed. Anything that names it (its codes, bringing its portraits over) only shows
+    /// when it is.
+    /// </summary>
+    public static bool HaselTweaksInstalled() => PluginInterface.InstalledPlugins.Any(p => p.InternalName == "HaselTweaks");
     private MainWindow MainWindow { get; }
 
     /// <summary>The logged-in character's content id, or 0.</summary>

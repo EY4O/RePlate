@@ -48,7 +48,7 @@ public static class ShareCode
                 problem = "That code has values no portrait could have.";
                 return null;
             }
-            problem = "That isn't a RePlate or HaselTweaks code.";
+            problem = "That isn't a code RePlate can read.";
             return null;
         }
         if (code.Length > MaxCodeLength)
