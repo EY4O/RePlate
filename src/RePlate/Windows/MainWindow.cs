@@ -88,7 +88,7 @@ public sealed class MainWindow : ThemedWindow
         if (Theme.AccentIconButton(FontAwesomeIcon.Heart, "Patreon / Ko-fi")) Ui.OpenUrl(PatreonUrl);
         if (ImGui.IsItemClicked(ImGuiMouseButton.Right)) Ui.OpenUrl(KoFiUrl);
         supportWidth = ImGui.GetItemRectSize().X;
-        Ui.Tip("If RePlate has saved you some time, please consider supporting its developer.\n\n" +
+        Ui.Tip("If you're enjoying RePlate, please consider donating.\n\n" +
                "Left click: Patreon\nRight click: Ko-fi");
     }
 }
