@@ -48,13 +48,11 @@ public sealed class PresetHeader(Plugin plugin, PlateImages images, Action<strin
 
         if (preset.Favorite) Summary.Star();
         using (ImRaii.PushColor(ImGuiCol.Text, Theme.AccentText)) ImGui.TextUnformatted(preset.Name);
+        // The buttons sit at the right edge, on the next line when the name leaves no room.
+        var right = ImGui.GetWindowContentRegionMax().X;
         ImGui.SameLine();
-        // The buttons sit at the right edge, or straight after a name too long to leave room.
-        var style = ImGui.GetStyle();
-        string[] buttons = confirmDelete ? ["Rename", "Share", "Yes, delete", "Keep"] : ["Rename", "Share", "Delete"];
-        var width = buttons.Sum(b => ImGui.CalcTextSize(b).X + style.FramePadding.X * 2) + style.ItemSpacing.X * (buttons.Length - 1);
-        if (confirmDelete) width += ImGui.CalcTextSize(DeleteQuestion).X + style.ItemSpacing.X;
-        ImGui.SetCursorPosX(Math.Max(ImGui.GetCursorPosX(), ImGui.GetWindowContentRegionMax().X - width));
+        FitOnLine(Width("Rename", "Share", "Delete"), right);
+        ImGui.SetCursorPosX(Math.Max(ImGui.GetCursorPosX(), right - Width("Rename", "Share", "Delete")));
         var deleted = false;
         using (ImRaii.Disabled(!plugin.Store.CanWrite))
         {
@@ -63,14 +61,14 @@ public sealed class PresetHeader(Plugin plugin, PlateImages images, Action<strin
             if (ImGui.SmallButton("Share")) Share(preset);
             Ui.Tip("Copies a code anyone with RePlate can import. It holds what's saved here, not who you are, and not its picture.");
             ImGui.SameLine();
-            if (!confirmDelete)
-            {
-                if (Theme.DangerButton("Delete")) confirmDelete = true;
-            }
-            else
+            if (Theme.DangerButton("Delete")) confirmDelete = true;
+
+            // The question gets its own line, with its buttons beside it when they fit.
+            if (confirmDelete)
             {
                 ImGui.TextColored(Theme.Warning, DeleteQuestion);
                 ImGui.SameLine();
+                FitOnLine(Width("Yes, delete", "Keep"), right);
                 if (Theme.DangerButton("Yes, delete"))
                 {
                     plugin.Store.Remove(preset.Id);
@@ -85,6 +83,19 @@ public sealed class PresetHeader(Plugin plugin, PlateImages images, Action<strin
         }
         ImGui.TextDisabled(subtitle);
         return deleted;
+    }
+
+    // How wide a row of small buttons is.
+    private static float Width(params string[] labels)
+    {
+        var style = ImGui.GetStyle();
+        return labels.Sum(l => ImGui.CalcTextSize(l).X + style.FramePadding.X * 2) + style.ItemSpacing.X * (labels.Length - 1);
+    }
+
+    // After SameLine: go to a new line instead when what follows won't fit before the right edge.
+    private static void FitOnLine(float width, float right)
+    {
+        if (ImGui.GetCursorPosX() + width > right) ImGui.NewLine();
     }
 
     /// <summary>The right-click menu on a plate or portrait. Rename and Delete select it and use the header's own.</summary>
