@@ -60,7 +60,7 @@ public sealed class PresetHeader(Plugin plugin, PlateImages images, Action<strin
             ImGui.SameLine();
             if (ImGui.SmallButton("Share")) Share(preset);
             Ui.Tip("Copies a code anyone with RePlate can import. It holds what's saved here, not who you are, and not its picture." +
-                   (Plugin.HaselTweaksInstalled() ? " Right-click it in the list for a HaselTweaks code instead." : ""));
+                   (Plugin.HaselTweaksLoaded() ? " Right-click it in the list for a HaselTweaks code instead." : ""));
             ImGui.SameLine();
             if (Theme.DangerButton("Delete")) confirmDelete = true;
 
@@ -119,7 +119,7 @@ public sealed class PresetHeader(Plugin plugin, PlateImages images, Action<strin
             }
         }
         if (ImGui.MenuItem("Share")) Share(preset);
-        if (preset.Portrait is { } portrait && Plugin.HaselTweaksInstalled() && ImGui.MenuItem("Copy for HaselTweaks"))
+        if (preset.Portrait is { } portrait && Plugin.HaselTweaksLoaded() && ImGui.MenuItem("Copy for HaselTweaks"))
         {
             ImGui.SetClipboardText(HaselTweaksCode.Encode(portrait));
             status(preset.Kind == PresetKind.Plate

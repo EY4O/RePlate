@@ -107,7 +107,7 @@ public sealed class SettingsWindow : ThemedWindow
                 {
                     if (ok) Start("Reading the backup...", Task.Run(() => ReadBackup(path)));
                 });
-            if (Plugin.HaselTweaksInstalled())
+            if (Plugin.HaselTweaksLoaded())
             {
                 if (ImGui.Button("Bring over HaselTweaks portraits"))
                 {

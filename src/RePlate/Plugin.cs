@@ -93,10 +93,10 @@ public sealed class Plugin : IDalamudPlugin
     public ImageFiles Pictures { get; }
 
     /// <summary>
-    /// Whether HaselTweaks is installed. Anything that names it (its codes, bringing its portraits over) only shows
-    /// when it is.
+    /// Whether HaselTweaks is loaded. Anything that names it (its codes, bringing its portraits over) only shows
+    /// while it is.
     /// </summary>
-    public static bool HaselTweaksInstalled() => PluginInterface.InstalledPlugins.Any(p => p.InternalName == "HaselTweaks");
+    public static bool HaselTweaksLoaded() => PluginInterface.InstalledPlugins.Any(p => p.InternalName == "HaselTweaks" && p.IsLoaded);
     private MainWindow MainWindow { get; }
 
     /// <summary>The logged-in character's content id, or 0.</summary>
