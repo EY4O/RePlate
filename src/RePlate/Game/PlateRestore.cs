@@ -9,9 +9,10 @@ namespace RePlate.Game;
 public enum PlatePart { Portrait, Design }
 
 /// <summary>
-/// Restores a saved portrait or design in one go, the way you would by hand: open your plate, pick the editor from
-/// its edit menu, put the saved choices in, check them, press Save, and check what the plate kept. Anything unexpected
-/// stops it, and if it stops before Save the editor is left open for you. Start and Update run on the framework thread.
+/// Restores a saved portrait or design the way you would by hand: open your plate, pick the editor from its edit
+/// menu, put the saved choices in and check them. By default it stops there for you to look it over and press Save;
+/// with that setting off it presses Save itself and checks what the plate kept. Anything unexpected stops it, with
+/// the editor left open for you. Start and Update run on the framework thread.
 /// </summary>
 public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor designs, Func<bool> pauseBeforeSave)
 {
@@ -325,8 +326,6 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
         NextOrFinish();
     }
 
-    // What your plate keeps, compared with the preset; null while it can't be read. With the design editor open the
-    // plate shows its unsaved picks, so this is only asked when the part's editor is closed.
     // A shared plate always ends with the player's look, so its message is an invitation rather than a report.
     private string SharedMessage()
     {
@@ -348,6 +347,8 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
         return $"{d.BasePlate}/{d.TopBorder}/{d.BottomBorder}/{string.Join(",", decorations)}/{card->InvertPortraitPlacement}";
     }
 
+    // What your plate keeps, compared with the preset; null while it can't be read. With the design editor open the
+    // plate shows its unsaved picks, so this is only asked when the part's editor is closed.
     private List<string>? Kept()
     {
         if (PlateReader.GetOwnCard(owner, out var card) != null) return null;

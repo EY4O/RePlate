@@ -10,9 +10,9 @@ using RePlate.Core.Plates;
 namespace RePlate.Game;
 
 /// <summary>
-/// Puts a saved design into the open Edit Plate Design window by stepping each list with its own arrow buttons,
-/// one click at a time, like a player would. Nothing is saved; the player presses Save or closes the window.
-/// Start and Update run on the framework thread.
+/// Puts a saved design into the open Edit Plate Design window, one click at a time like a player would: each part is
+/// picked in its own picker, with the list's arrow buttons as a fallback. Nothing is saved; the player presses Save
+/// or closes the window. Start and Update run on the framework thread.
 /// </summary>
 public sealed unsafe class DesignEditor
 {
@@ -313,10 +313,10 @@ public sealed unsafe class DesignEditor
     // None is the first row of every list but the base plates, and its label is translated, so it goes by position.
     private const string None = "(none)";
 
-    // The item's name as the window lists it.
     // For messages: the item's name, or its number when this game doesn't know it (possible with a shared code).
     private static string Title(int part, uint id) => NameOf(part, id) is { } name && name != None ? name : id == 0 ? "None" : $"#{id}";
 
+    // The item's name as the window lists it.
     private static string? NameOf(int part, uint id)
     {
         if (id == 0) return part == 0 ? null : None;
