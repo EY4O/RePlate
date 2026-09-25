@@ -9,21 +9,14 @@ just a change of mind.
 
 ## Features
 
-- **Save your plate:** the portrait's pose, expression, camera, lighting, background, frame and accent, and the plate
-  design's base plate, borders, decorations and layout.
-- **Restore:** opens the plate's own editors and puts the portrait and design back, checks the result, and leaves
-  it for you to look over and save. Parts that already match are skipped, and anything not unlocked on the character
-  is named. Settings can let RePlate press Save for you.
-- **Gear set portraits:** save your gear sets' portraits into a gallery, and put one on several gear sets. They open
-  one at a time for you to look over and save; anything a job can't use keeps what that gear set has.
-- **Apply without saving:** fill Edit Portrait or Edit Plate Design with a saved plate and finish it yourself.
-- **Share:** copy a plate as a short code and import other players' codes. Anything your character hasn't unlocked
-  keeps your own choice, and restoring a shared plate stops before saving so you can look it over.
-- **HaselTweaks:** import HaselTweaks portrait codes, copy any portrait as one, and bring over the portraits saved in
-  HaselTweaks' Portrait Helper, pictures included.
-- **Pictures:** capture and crop the game view, or attach a PNG, so plates are easy to tell apart.
-- **Backups:** export your plates and portraits, with their pictures, as one file, and import them on a new PC or
-  another character.
+- Save everything in one click: Grab the full look—pose, expression, lighting, background, frames, accents, and base layout—without manually writing down settings.
+- Smarter restoring: RePlate opens the in-game editor, dials in your saved setup, and pauses so you can double-check the final result before saving. It skips parts that already match, calls out anything you haven't unlocked yet, and can even hit Save automatically if you turn that setting on.
+- Gear set gallery: Store your favorite looks in a central gallery and apply one portrait across multiple jobs. If a job can't wear or use a specific item, it simply keeps what you already had on.
+- Test before committing: Drop a saved preset directly into Edit Portrait or Edit Plate Design to tweak the details by hand before saving.
+- Easy sharing: Swap plates using simple text codes. If someone shares a preset with items you don't own yet, your current style stays untouched—and the import stops right before saving so you can review it first.
+- HaselTweaks support: Seamlessly copy or import HaselTweaks codes, and migrate your entire existing library from Portrait Helper (preview images included). (Thanks mate.)
+- Custom thumbnails: Snap an in-game screenshot or drop in a PNG so you can instantly recognize which plate is which.
+One-file backups: Export your entire collection—portraits, plates, and thumbnails—into a single file to move between characters or transfer to a new PC.
 
 ## Installation
 
