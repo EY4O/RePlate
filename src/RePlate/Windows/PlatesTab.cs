@@ -334,7 +334,10 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
             if (Theme.PrimaryButton("Restore"))
                 StartRun(() => plugin.Restore.Start(preset, owner), "Restoring...");
             plugin.Guide.Mark(GuideTarget.Restore);
-            Ui.TipAlways("Puts this portrait and plate design back on your plate and saves them. Parts that already match are skipped.");
+            Ui.TipAlways(plugin.Configuration.PauseBeforeSave
+                ? "Opens your plate's editors and puts this portrait, then this design, in for you to look over and save. " +
+                  "Press Restore again after saving for the next part. Parts that already match are skipped."
+                : "Puts this portrait and plate design back on your plate and saves them. Parts that already match are skipped.");
             ImGui.SameLine();
             // The same without saving, for looking it over first.
             using (ImRaii.Disabled(preset.Portrait == null))

@@ -15,7 +15,7 @@ public sealed class Configuration : IPluginConfiguration
     public int TourStep { get; set; } = -1;
 
     /// <summary>Restore stops with the editor open, before Save, so you can look it over and save it yourself.</summary>
-    public bool PauseBeforeSave { get; set; }
+    public bool PauseBeforeSave { get; set; } = true;
 
     public bool UseTheme { get; set; } = true;
     public AccentChoice Accent { get; set; } = AccentChoice.GilGold;
