@@ -176,6 +176,18 @@ public sealed unsafe class PortraitEditor
     /// <summary>True when the Edit Portrait asked for is open and ready to take a portrait.</summary>
     public static bool Ready(ulong owner, int gearset = -1) => GetEditor(owner, out _, out _, gearset) == null;
 
+    /// <summary>What Edit Portrait looks like right now, for the log when a gear set's doesn't open as expected.</summary>
+    public static string Describe()
+    {
+        var addon = Plugin.GameGui.GetAddonByName("BannerEditor");
+        var pointer = Plugin.GameGui.GetAgentById((int)AgentId.BannerEditor);
+        var agent = pointer.IsNull ? null : (AgentBannerEditor*)pointer.Address;
+        var state = agent == null ? null : agent->EditorState;
+        return $"window {(addon.IsNull ? "none" : addon.IsVisible ? "visible" : "hidden")}, agent {(agent == null ? "none" : agent->IsAgentActive() ? "active" : "idle")}" +
+               (state == null ? ", no state" : $", opened for {state->OpenType}, gear set place {state->OpenerEnabledGearsetIndex}, " +
+                                              $"countdown {state->FrameCountdown}, loaded {state->CharaView != null && state->CharaView->CharaViewPortraitCharacterLoaded}");
+    }
+
     /// <summary>Which gear set's Edit Portrait is open (its place in the game's list), or -1 when it's not a gear set's.</summary>
     public static int OpenGearset()
     {

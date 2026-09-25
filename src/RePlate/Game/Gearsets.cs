@@ -30,12 +30,21 @@ public static unsafe class Gearsets
         return result;
     }
 
-    /// <summary>Opens a gear set's Edit Portrait, as its "Edit Portrait" option in the Gear Set list does.</summary>
+    /// <summary>Opens a gear set's Edit Portrait through the portrait editor's own opener.</summary>
     public static string? OpenEditor(GearsetInfo gearset)
     {
         var agent = AgentBannerEditor.Instance();
         if (agent == null) return "Edit Portrait isn't available right now.";
         agent->OpenForGearset(gearset.EnabledIndex);
+        return null;
+    }
+
+    /// <summary>The same through the Gear Set list's own "Edit Portrait", for when the first way doesn't open it.</summary>
+    public static string? OpenEditorFromList(GearsetInfo gearset)
+    {
+        var agent = AgentGearSet.Instance();
+        if (agent == null) return "The Gear Set list isn't available right now.";
+        agent->EditPortrait(gearset.Id);
         return null;
     }
 }

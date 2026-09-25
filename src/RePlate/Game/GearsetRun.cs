@@ -27,6 +27,7 @@ public sealed class GearsetRun(PortraitEditor portraits)
     private int index;
     private Step step;
     private bool reapplied;
+    private bool triedList;
     private string before = "";
     private DateTime stepStarted;
     private DateTime nextAction;
@@ -89,6 +90,8 @@ public sealed class GearsetRun(PortraitEditor portraits)
         }
         if (step is Step.Open or Step.WaitEditor or Step.Apply or Step.Check && DateTime.UtcNow - stepStarted > StepLimit)
         {
+            if (step == Step.WaitEditor)
+                Plugin.Log.Information($"{Title(gearset)} (place {gearset.EnabledIndex}, id {gearset.Id}): {PortraitEditor.Describe()}");
             Stop(step == Step.Open && Visible("BannerEditor")
                 ? $"Another Edit Portrait is still open, so {Title(gearset)}'s couldn't open. Close it and start again."
                 : step is Step.Open or Step.WaitEditor
@@ -108,11 +111,23 @@ public sealed class GearsetRun(PortraitEditor portraits)
                     return;
                 }
                 Progress = $"{label}: opening Edit Portrait...";
+                triedList = false;
                 Go(Step.WaitEditor);
                 return;
 
             case Step.WaitEditor:
-                if (PortraitEditor.Ready(owner, gearset.EnabledIndex)) Go(Step.Apply);
+                if (PortraitEditor.Ready(owner, gearset.EnabledIndex))
+                {
+                    Go(Step.Apply);
+                    return;
+                }
+                // Nothing showed up: try the Gear Set list's own Edit Portrait once.
+                if (!triedList && !Visible("BannerEditor") && DateTime.UtcNow - stepStarted > TimeSpan.FromSeconds(3))
+                {
+                    triedList = true;
+                    Plugin.Log.Information($"{Title(gearset)}: Edit Portrait didn't open; trying the Gear Set list's own.");
+                    if (Gearsets.OpenEditorFromList(gearset) is { } listProblem) Stop(listProblem);
+                }
                 return;
 
             case Step.Apply:
