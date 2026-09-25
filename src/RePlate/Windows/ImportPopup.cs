@@ -64,8 +64,14 @@ public sealed class ImportPopup(Plugin plugin)
             }
             ImGui.Spacing();
             using (ImRaii.PushColor(ImGuiCol.Text, Theme.Muted))
-                ImGui.TextWrapped("Anything this character hasn't unlocked keeps your own choice, and you look it over before " +
-                                  "anything is saved. On a different race the camera may need a nudge.");
+            {
+                ImGui.TextWrapped("Anything in it you haven't unlocked is left unchanged. Nothing is saved until you press Save.");
+                // A different body can put the camera somewhere else; a code without one might be from anyone.
+                if (shared.Race == 0)
+                    ImGui.TextWrapped("If it was made on a different race or gender, the camera may need adjusting.");
+                else if (shared.Race != Plugin.PlayerState.Race.RowId || shared.Sex != (byte)Plugin.PlayerState.Sex)
+                    ImGui.TextWrapped("It was made on a different race or gender, so the camera may need adjusting.");
+            }
         }
 
         PlatePreset? added = null;

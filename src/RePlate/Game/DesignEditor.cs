@@ -43,7 +43,7 @@ public sealed unsafe class DesignEditor
     private bool[] keepYours = new bool[Parts.Length];
     private string kept = "";
 
-    /// <summary>" Kept yours for: ..." when the last shared design had something locked, else empty.</summary>
+    /// <summary>" Left unchanged: ..." when the last shared design had something locked, else empty.</summary>
     public string Kept => kept;
     private int pickerPart = -1;
     private bool picked;
@@ -99,7 +99,7 @@ public sealed unsafe class DesignEditor
         keepYours = new bool[Parts.Length];
         for (var i = 0; i < Parts.Length; i++)
             keepYours[i] = Rows(List(addon, Parts[i]), i, wanted[i]).Count == 0;
-        kept = locked.Count > 0 ? $" Kept yours for: {string.Join(", ", locked)} (not unlocked)." : "";
+        kept = locked.Count > 0 ? $" Left unchanged, not unlocked: {string.Join(", ", locked)}." : "";
 
         target = design;
         this.owner = owner;

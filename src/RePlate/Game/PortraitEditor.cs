@@ -31,7 +31,7 @@ public sealed unsafe class PortraitEditor
     // The editor the last Apply went into, so Verify reads the same one.
     private int verifying = -1;
 
-    /// <summary>After Verify: " Kept yours for: ..." when a shared plate had something locked, else empty.</summary>
+    /// <summary>After Verify: " Left unchanged: ..." when a shared plate had something locked, else empty.</summary>
     public string Kept => kept;
 
     /// <summary>After Verify: what the game warns about the framing, or null.</summary>
@@ -59,7 +59,7 @@ public sealed unsafe class PortraitEditor
         if (!preset.Imported && gearset < 0 && Refusal(missing, portrait) is { } refusal) return new(false, refusal);
         if (missing.Count > 0)
         {
-            kept = " Kept yours for: " + string.Join(", ", missing.Select(m =>
+            kept = " Left unchanged: " + string.Join(", ", missing.Select(m =>
                 $"{ListParts[m.List]} {Name(m.List, ListIds(portrait)[m.List])} ({(m.OtherJob ? "another job's" : "not unlocked")})")) + ".";
             portrait = KeepYours(portrait, current, missing);
         }
