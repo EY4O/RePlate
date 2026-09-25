@@ -7,6 +7,7 @@ using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using RePlate.Core.Plates;
+using Bounds = FFXIVClientStructs.FFXIV.Common.Math.Bounds;
 
 namespace RePlate.Game;
 
@@ -166,11 +167,35 @@ public sealed unsafe class PortraitEditor
         return null;
     }
 
-    /// <summary>Where Edit Portrait is on screen, for suggesting a crop; null when it isn't open.</summary>
+    /// <summary>
+    /// Where the portrait preview in Edit Portrait is on screen, for suggesting a crop: the window's largest picture.
+    /// The whole window when that can't be found, and null when Edit Portrait isn't open.
+    /// </summary>
     public static (System.Numerics.Vector2 Position, System.Numerics.Vector2 Size)? Window()
     {
         var addon = Plugin.GameGui.GetAddonByName("BannerEditor");
-        return addon.IsNull || !addon.IsVisible ? null : (addon.Position, addon.ScaledSize);
+        if (addon.IsNull || !addon.IsVisible) return null;
+
+        var unit = (AtkUnitBase*)addon.Address;
+        Bounds best = default;
+        var bestArea = 0;
+        uint bestNode = 0;
+        for (var i = 0; i < unit->UldManager.NodeListCount; i++)
+        {
+            var node = unit->UldManager.NodeList[i];
+            if (node == null || node->Type != NodeType.Image || !node->IsVisible()) continue;
+            Bounds bounds;
+            node->GetBounds(&bounds);
+            var area = bounds.Width * bounds.Height;
+            if (area <= bestArea) continue;
+            best = bounds;
+            bestArea = area;
+            bestNode = node->NodeId;
+        }
+        // Anything smaller than this is an icon or a border, not the preview.
+        if (bestArea < 150 * 150) return (addon.Position, addon.ScaledSize);
+        Plugin.Log.Debug($"Portrait preview for the crop: node #{bestNode}, {best.Width}x{best.Height} at {best.Pos1.X},{best.Pos1.Y}.");
+        return (new System.Numerics.Vector2(best.Pos1.X, best.Pos1.Y), new System.Numerics.Vector2(best.Width, best.Height));
     }
 
     /// <summary>True when the Edit Portrait asked for is open and ready to take a portrait.</summary>
