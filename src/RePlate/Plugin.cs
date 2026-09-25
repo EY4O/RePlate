@@ -51,14 +51,15 @@ public sealed class Plugin : IDalamudPlugin
         Designs = new DesignEditor();
         Restore = new PlateRestore(Editor, Designs, () => Configuration.PauseBeforeSave);
         GearsetRun = new GearsetRun(Editor);
-        Guide = new Guide(this);
+        Guide = new Guide(this, Tour.Plates);
+        PortraitGuide = new Guide(this, Tour.Portraits);
         Pictures = new ImageFiles(folder);
         images = new PlateImages(Pictures, () =>
         {
             var owner = CharacterId;
             return Framework.RunOnFrameworkThread(() => Reader.PlateWindow(owner));
         }, Guide);
-        portraitImages = new PlateImages(Pictures, () => Framework.RunOnFrameworkThread(PortraitEditor.Window), null, "Edit Portrait window");
+        portraitImages = new PlateImages(Pictures, () => Framework.RunOnFrameworkThread(PortraitEditor.Window), PortraitGuide, "portrait");
         thumbnails = new Thumbnails(Pictures);
 
         MainWindow = new MainWindow(this, new PlatesTab(this, images), new PortraitsTab(this, portraitImages, thumbnails));
@@ -87,6 +88,7 @@ public sealed class Plugin : IDalamudPlugin
     public PlateRestore Restore { get; }
     public GearsetRun GearsetRun { get; }
     public Guide Guide { get; }
+    public Guide PortraitGuide { get; }
     public ImageFiles Pictures { get; }
     private MainWindow MainWindow { get; }
 
@@ -106,6 +108,14 @@ public sealed class Plugin : IDalamudPlugin
     {
         Guide.Start();
         MainWindow.ShowPlates();
+    }
+
+    /// <summary>Starts the Portraits tab's tour.</summary>
+    public void StartPortraitTour()
+    {
+        Configuration.PortraitTourOffered = true;
+        PortraitGuide.Start();
+        MainWindow.ShowPortraits();
     }
 
     /// <summary>Stops whatever RePlate is doing in the game's windows.</summary>

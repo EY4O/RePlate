@@ -14,6 +14,12 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>The guided tour's current step, or -1 when it isn't running.</summary>
     public int TourStep { get; set; } = -1;
 
+    /// <summary>The same for the Portraits tab's tour.</summary>
+    public int PortraitTourStep { get; set; } = -1;
+
+    /// <summary>The Portraits tour has been offered once, on first opening that tab.</summary>
+    public bool PortraitTourOffered { get; set; }
+
     /// <summary>Restore stops with the editor open, before Save, so you can look it over and save it yourself.</summary>
     public bool PauseBeforeSave { get; set; } = true;
 

@@ -63,6 +63,10 @@ public sealed class PortraitsTab
         }
 
         FinishTasks(owner);
+        var guide = plugin.PortraitGuide;
+        guide.Update(Gearsets.PortraitsWindowOpen(), plugin.Store.For(owner, PresetKind.Portrait).Count, images, plugin.GearsetRun.Running);
+        DrawTourOffer();
+        guide.DrawBar();
         DrawRunBar();
         DrawToolbar(owner);
         if (import.Draw(owner) is { } added)
@@ -97,6 +101,24 @@ public sealed class PortraitsTab
         }
     }
 
+    // The first time the tab is opened, offer the tour once.
+    private void DrawTourOffer()
+    {
+        var config = plugin.Configuration;
+        if (config.PortraitTourOffered || plugin.PortraitGuide.Active) return;
+        using (ImRaii.PushColor(ImGuiCol.Text, Theme.AccentText)) ImGui.TextUnformatted("New to Portraits?");
+        ImGui.SameLine();
+        ImGui.TextUnformatted("A short tour shows you how to save a gear set's portrait and put it on others.");
+        if (Theme.PrimaryButton("Show me around")) plugin.StartPortraitTour();
+        ImGui.SameLine();
+        if (ImGui.Button("No thanks"))
+        {
+            config.PortraitTourOffered = true;
+            plugin.MarkDirty();
+        }
+        ImGui.Separator();
+    }
+
     // While gear sets are being done: which one, what to do, and Stop.
     private void DrawRunBar()
     {
@@ -113,6 +135,7 @@ public sealed class PortraitsTab
         using (ImRaii.Disabled(loadingGearsets != null || !plugin.Store.CanWrite))
         {
             if (Theme.PrimaryButton("Save from gear set")) LoadGearsets(owner, FromGearsetPopup);
+            plugin.PortraitGuide.Mark(GuideTarget.SaveFromGearset);
         }
         Ui.TipAlways("Saves a copy of one of your gear sets' portraits.");
         ImGui.SameLine();
@@ -120,6 +143,7 @@ public sealed class PortraitsTab
         {
             if (ImGui.Button("Open my Portraits"))
                 opening = Plugin.Framework.RunOnFrameworkThread(Gearsets.OpenPortraitsWindow);
+            plugin.PortraitGuide.Mark(GuideTarget.OpenPortraits);
         }
         Ui.TipAlways("Opens the game's Portraits window, as from the character menu. Its preview is also what a captured picture is fitted to.");
         ImGui.SameLine();
@@ -336,6 +360,7 @@ public sealed class PortraitsTab
                 ticked.Clear();
                 LoadGearsets(plugin.CharacterId, ApplyPopup);
             }
+            plugin.PortraitGuide.Mark(GuideTarget.ApplyToGearsets);
             Ui.TipAlways("Puts this portrait on the gear sets you pick, one at a time. Each opens for you to look over and save.");
             ImGui.SameLine();
             if (ImGui.Button("Apply Portrait")) StartApply(preset);

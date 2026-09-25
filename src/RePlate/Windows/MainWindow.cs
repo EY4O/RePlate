@@ -18,6 +18,7 @@ public sealed class MainWindow : ThemedWindow
     private readonly AboutTab about;
     private float supportWidth;
     private bool showPlates;
+    private bool showPortraits;
 
     public MainWindow(Plugin plugin, PlatesTab plates, PortraitsTab portraits) : base("RePlate###RePlateMain")
     {
@@ -43,6 +44,13 @@ public sealed class MainWindow : ThemedWindow
         IsOpen = true;
     }
 
+    /// <summary>Opens the window on the Portraits tab.</summary>
+    public void ShowPortraits()
+    {
+        showPortraits = true;
+        IsOpen = true;
+    }
+
     public override void Draw()
     {
         var tabRow = ImGui.GetCursorPos();
@@ -61,7 +69,9 @@ public sealed class MainWindow : ThemedWindow
         {
             if (tab.Success) plates.Draw();
         }
-        using (var tab = ImRaii.TabItem("Portraits"))
+        var portraitsFlags = showPortraits ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
+        showPortraits = false;
+        using (var tab = ImRaii.TabItem("Portraits", portraitsFlags))
         {
             if (tab.Success) portraits.Draw();
         }

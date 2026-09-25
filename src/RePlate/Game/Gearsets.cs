@@ -39,6 +39,13 @@ public static unsafe class Gearsets
         return null;
     }
 
+    /// <summary>Whether the game's Portraits window is open.</summary>
+    public static bool PortraitsWindowOpen()
+    {
+        var pointer = Plugin.GameGui.GetAgentById((int)AgentId.BannerList);
+        return !pointer.IsNull && ((AgentInterface*)pointer.Address)->IsAgentActive();
+    }
+
     /// <summary>Opens the game's Portraits window, as the character menu does.</summary>
     public static string? OpenPortraitsWindow()
     {
