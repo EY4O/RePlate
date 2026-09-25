@@ -30,7 +30,7 @@ public class BackupTests : IDisposable
         ClassJob = kind == PresetKind.Portrait ? (byte)19 : (byte)0,
     };
 
-    private static byte[] Png(uint size)
+    internal static byte[] Png(uint size)
     {
         var bytes = new byte[40];
         new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }.CopyTo(bytes, 0);

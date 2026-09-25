@@ -19,6 +19,8 @@ just a change of mind.
 - **Apply without saving:** fill Edit Portrait or Edit Plate Design with a saved plate and finish it yourself.
 - **Share:** copy a plate as a short code and import other players' codes. Anything your character hasn't unlocked
   keeps your own choice, and restoring a shared plate stops before saving so you can look it over.
+- **HaselTweaks:** import HaselTweaks portrait codes, copy any portrait as one, and bring over the portraits saved in
+  HaselTweaks' Portrait Helper, pictures included.
 - **Pictures:** capture and crop the game view, or attach a PNG, so plates are easy to tell apart.
 - **Backups:** export your plates and portraits, with their pictures, as one file, and import them on a new PC or
   another character.

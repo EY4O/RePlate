@@ -288,7 +288,7 @@ public sealed class PortraitsTab
         var textTop = pictureMax.Y + 3 * scale;
         draw.AddText(new Vector2(min.X, textTop), ImGui.GetColorU32(selectedCard ? Theme.AccentText : ImGui.GetStyle().Colors[(int)ImGuiCol.Text]),
             Fit(preset.Name, width));
-        var job = preset.Imported ? $"{Names.Job(preset.ClassJob)} · Shared" : Names.Job(preset.ClassJob);
+        var job = string.Join(" · ", new[] { Names.Job(preset.ClassJob), preset.Imported ? "Shared" : "" }.Where(s => s.Length > 0));
         draw.AddText(new Vector2(min.X, textTop + line), ImGui.GetColorU32(Theme.Muted), Fit(job, width));
     }
 
@@ -331,7 +331,7 @@ public sealed class PortraitsTab
         var job = Names.Job(preset.ClassJob);
         var made = string.Join(" · ", new[] { job, Names.Race(preset.Race, preset.Sex) }.Where(s => s.Length > 0));
         var subtitle = preset.Imported
-            ? $"Shared, made on {made} - Added {preset.CreatedAt.ToLocalTime():MM-dd-yyyy}"
+            ? $"Shared{(made.Length > 0 ? $", made on {made}" : "")} - Added {preset.CreatedAt.ToLocalTime():MM-dd-yyyy}"
             : $"{made} - Created {preset.CreatedAt.ToLocalTime():MM-dd-yyyy}";
         if (header.Draw(preset, subtitle))
         {

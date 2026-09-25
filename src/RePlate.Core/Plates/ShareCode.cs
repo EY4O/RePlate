@@ -10,7 +10,8 @@ public sealed record SharedPlate(string Name, uint Race, uint Tribe, byte Sex, P
 
 /// <summary>
 /// Turns a plate into a short text code and back. The code is "RePlate1:" followed by compressed JSON in URL-safe
-/// base64. Reading one is strict: anything that doesn't look right is refused rather than guessed at.
+/// base64. HaselTweaks' portrait strings are read too, as portraits. Reading one is strict: anything that doesn't
+/// look right is refused rather than guessed at.
 /// </summary>
 public static class ShareCode
 {
@@ -40,7 +41,14 @@ public static class ShareCode
         code = new string(code.Where(c => !char.IsWhiteSpace(c)).ToArray());
         if (!code.StartsWith(Prefix, StringComparison.Ordinal))
         {
-            problem = "That isn't a RePlate share code.";
+            if (HaselTweaksCode.Decode(code) is { } portrait)
+            {
+                var fromHasel = new SharedPlate("", 0, 0, 0, portrait, null, PresetKind.Portrait);
+                if (Sensible(fromHasel)) return fromHasel;
+                problem = "That code has values no portrait could have.";
+                return null;
+            }
+            problem = "That isn't a RePlate or HaselTweaks code.";
             return null;
         }
         if (code.Length > MaxCodeLength)
@@ -83,7 +91,7 @@ public static class ShareCode
         var now = DateTimeOffset.UtcNow;
         return new PlatePreset
         {
-            Name = shared.Name.Length > 0 ? shared.Name : "Shared plate",
+            Name = shared.Name.Length > 0 ? shared.Name : shared.Kind == PresetKind.Portrait ? "Shared portrait" : "Shared plate",
             CreatedAt = now,
             UpdatedAt = now,
             Owner = owner,

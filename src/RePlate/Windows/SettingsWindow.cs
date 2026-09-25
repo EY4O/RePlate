@@ -20,6 +20,7 @@ public sealed class SettingsWindow : ThemedWindow
     private readonly FileDialogManager backups = new();
     private Task<string>? working;
     private BackupContents? pending;
+    private HaselTweaksPortraits? pendingHasel;
     private string backupStatus = "";
 
     public SettingsWindow(Plugin plugin) : base("RePlate Settings###RePlateSettings", ImGuiWindowFlags.NoCollapse)
@@ -106,8 +107,16 @@ public sealed class SettingsWindow : ThemedWindow
                 {
                     if (ok) Start("Reading the backup...", Task.Run(() => ReadBackup(path)));
                 });
+            if (ImGui.Button("Bring over HaselTweaks portraits"))
+            {
+                pending = null;
+                Start("Reading HaselTweaks' portraits...", Task.Run(ReadHaselTweaks));
+            }
+            Ui.TipAlways("Adds the portraits saved in HaselTweaks' Portrait Helper, with their pictures, to this character. " +
+                         "HaselTweaks' own presets aren't changed.");
         }
 
+        if (pendingHasel is { } hasel) DrawHaselTweaks(hasel, owner);
         if (pending is { } backup)
         {
             var plates = backup.Presets.Count(p => p.Kind == PresetKind.Plate);
@@ -162,8 +171,49 @@ public sealed class SettingsWindow : ThemedWindow
     private string ReadBackup(string path)
     {
         using var file = File.OpenRead(path);
+        pendingHasel = null;
         pending = LibraryBackup.Read(file);
         return "";
+    }
+
+    // HaselTweaks keeps its settings beside RePlate's, in the folder every plugin's settings share.
+    private string ReadHaselTweaks()
+    {
+        var pluginConfigs = new DirectoryInfo(Plugin.PluginInterface.GetPluginConfigDirectory()).Parent!.FullName;
+        var found = HaselTweaksLibrary.Read(pluginConfigs);
+        if (found.Contents.Presets.Count == 0)
+            return found.Unreadable > 0
+                ? $"HaselTweaks has {found.Unreadable} saved portrait{(found.Unreadable == 1 ? "" : "s")}, but none RePlate could read."
+                : "HaselTweaks has no saved portraits.";
+        pendingHasel = found;
+        return "";
+    }
+
+    private void DrawHaselTweaks(HaselTweaksPortraits found, ulong owner)
+    {
+        var count = found.Contents.Presets.Count;
+        var pictures = found.Contents.Pictures.Count;
+        ImGui.TextWrapped($"HaselTweaks has {count} portrait{(count == 1 ? "" : "s")} saved, with {pictures} picture" +
+                          $"{(pictures == 1 ? "" : "s")}. They'll be added to this character's Portraits; any it already has " +
+                          "are left out." + (found.Unreadable > 0 ? $" {found.Unreadable} couldn't be read and stay behind." : ""));
+        using (ImRaii.Disabled(owner == 0 || !plugin.Store.CanWrite))
+        {
+            if (Theme.PrimaryButton("Add to this character##hasel"))
+            {
+                var contents = found.Contents;
+                pendingHasel = null;
+                Start("Adding...", Plugin.Framework.RunOnFrameworkThread(() =>
+                {
+                    var result = HaselTweaksLibrary.AddTo(plugin.Store, plugin.Pictures, contents, owner);
+                    plugin.Store.Save();
+                    return result.AlreadyHere > 0
+                        ? $"Added {result.Added} to Portraits; {result.AlreadyHere} were already here."
+                        : $"Added {result.Added} to Portraits.";
+                }));
+            }
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("Cancel##hasel")) pendingHasel = null;
     }
 
     private void Start(string status, Task<string> work)

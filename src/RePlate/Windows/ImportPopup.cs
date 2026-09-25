@@ -32,7 +32,7 @@ public sealed class ImportPopup(Plugin plugin)
         ImGui.SetNextWindowSize(new Vector2(600, 0) * scale, ImGuiCond.Appearing);
         if (!ImGui.BeginPopupModal(Id, ImGuiWindowFlags.AlwaysAutoResize)) return null;
 
-        ImGui.TextUnformatted("Paste a RePlate share code:");
+        ImGui.TextUnformatted("Paste a RePlate share code or a HaselTweaks portrait:");
         if (ImGui.InputTextMultiline("##code", ref code, 5000, new Vector2(560 * scale, 70 * scale))) Read();
         if (ImGui.Button("Paste from clipboard"))
         {
