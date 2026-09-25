@@ -48,6 +48,7 @@ public sealed class Plugin : IDalamudPlugin
         Editor = new PortraitEditor();
         Designs = new DesignEditor();
         Restore = new PlateRestore(Editor, Designs, () => Configuration.PauseBeforeSave);
+        GearsetRun = new GearsetRun(Editor);
         Guide = new Guide(this);
         Pictures = new ImageFiles(folder);
         images = new PlateImages(Pictures, () =>
@@ -80,6 +81,7 @@ public sealed class Plugin : IDalamudPlugin
     public PortraitEditor Editor { get; }
     public DesignEditor Designs { get; }
     public PlateRestore Restore { get; }
+    public GearsetRun GearsetRun { get; }
     public Guide Guide { get; }
     public ImageFiles Pictures { get; }
     private MainWindow MainWindow { get; }
@@ -107,6 +109,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         Designs.Stop(message);
         Restore.Stop(message);
+        GearsetRun.Stop(message);
     }
 
     // Earlier builds kept portraits in library.json. Bring them over once; the old file is left as it was.
@@ -137,6 +140,7 @@ public sealed class Plugin : IDalamudPlugin
         images.Update();
         Designs.Update();
         Restore.Update();
+        GearsetRun.Update();
         if (dirtySince is { } since && DateTime.UtcNow - since >= SaveDelay)
         {
             dirtySince = null;

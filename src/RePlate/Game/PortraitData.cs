@@ -34,6 +34,33 @@ public static class PortraitData
         Accent = accent,
     };
 
+    /// <summary>A gear set's saved portrait.</summary>
+    public static unsafe PortraitSettings FromBanner(BannerModuleEntry* b) => new()
+    {
+        CameraPosition = [(float)b->CameraPosition.X, (float)b->CameraPosition.Y, (float)b->CameraPosition.Z, (float)b->CameraPosition.W],
+        CameraTarget = [(float)b->CameraTarget.X, (float)b->CameraTarget.Y, (float)b->CameraTarget.Z, (float)b->CameraTarget.W],
+        ImageRotation = b->ImageRotation,
+        CameraZoom = b->CameraZoom,
+        Pose = b->BannerTimeline,
+        AnimationProgress = b->AnimationProgress,
+        Expression = b->Expression,
+        HeadDirection = [(float)b->HeadDirection.X, (float)b->HeadDirection.Y],
+        EyeDirection = [(float)b->EyeDirection.X, (float)b->EyeDirection.Y],
+        DirectionalRed = b->DirectionalLightingColorRed,
+        DirectionalGreen = b->DirectionalLightingColorGreen,
+        DirectionalBlue = b->DirectionalLightingColorBlue,
+        DirectionalBrightness = b->DirectionalLightingBrightness,
+        DirectionalVerticalAngle = b->DirectionalLightingVerticalAngle,
+        DirectionalHorizontalAngle = b->DirectionalLightingHorizontalAngle,
+        AmbientRed = b->AmbientLightingColorRed,
+        AmbientGreen = b->AmbientLightingColorGreen,
+        AmbientBlue = b->AmbientLightingColorBlue,
+        AmbientBrightness = b->AmbientLightingBrightness,
+        Background = b->BannerBg,
+        Frame = b->BannerFrame,
+        Accent = b->BannerDecoration,
+    };
+
     /// <summary>Everything but the frame and accent, which the editor sets separately.</summary>
     public static ExportedPortraitData ToGame(PortraitSettings p) => new()
     {

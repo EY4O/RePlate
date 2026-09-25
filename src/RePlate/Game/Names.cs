@@ -48,6 +48,14 @@ public static class Names
         return "None";
     }
 
+    /// <summary>A job's name, capitalised ("Paladin"), or empty when not known.</summary>
+    public static string Job(byte id) => id != 0 && Plugin.DataManager.GetExcelSheet<ClassJob>().GetRowOrDefault(id) is { } row
+        ? System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(row.Name.ExtractText())
+        : "";
+
+    /// <summary>The job's icon, as the Gear Set list shows it.</summary>
+    public static uint JobIcon(byte id) => id == 0 ? 0 : 62100u + id;
+
     public static string Race(uint id, byte sex) => Plugin.DataManager.GetExcelSheet<Race>().GetRowOrDefault(id) is { } row
         ? (sex == 1 ? row.Feminine : row.Masculine).ExtractText() : "";
 

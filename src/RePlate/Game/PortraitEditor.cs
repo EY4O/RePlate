@@ -25,6 +25,8 @@ public sealed unsafe class PortraitEditor
     // What the last Apply actually put in (a shared plate keeps your choice for anything locked), and a note saying so.
     private PortraitSettings? target;
     private string kept = "";
+    // The editor the last Apply went into, so Verify reads the same one.
+    private int verifying = -1;
 
     /// <summary>After Verify: " Kept yours for: ..." when a shared plate had something locked, else empty.</summary>
     public string Kept => kept;
@@ -32,11 +34,17 @@ public sealed unsafe class PortraitEditor
     /// <summary>After Verify: what the game warns about the framing, or null.</summary>
     public string? GameWarning { get; private set; }
 
-    public ApplyResult Apply(PlatePreset preset, ulong owner)
+    /// <summary>
+    /// Puts the portrait into your plate's Edit Portrait, or gear set N's (gearset: its place in the game's list). On a
+    /// gear set, or with a shared plate, anything this character can't pick keeps what's there; on your own plate it's
+    /// refused instead.
+    /// </summary>
+    public ApplyResult Apply(PlatePreset preset, ulong owner, int gearset = -1)
     {
         if (preset.Portrait is not { } portrait || preset.Owner != owner) return new(false, "This plate has no portrait to apply.");
-        var problem = GetEditor(owner, out var state, out var addon);
+        var problem = GetEditor(owner, out var state, out var addon, gearset);
         if (problem != null) return new(false, problem);
+        verifying = gearset;
 
         var view = state->CharaView;
         ExportedPortraitData before;
@@ -45,7 +53,7 @@ public sealed unsafe class PortraitEditor
 
         var missing = Unavailable(state, portrait);
         kept = "";
-        if (!preset.Imported && Refusal(missing, portrait) is { } refusal) return new(false, refusal);
+        if (!preset.Imported && gearset < 0 && Refusal(missing, portrait) is { } refusal) return new(false, refusal);
         if (missing.Count > 0)
         {
             kept = " Kept yours for: " + string.Join(", ", missing.Select(m =>
@@ -95,7 +103,7 @@ public sealed unsafe class PortraitEditor
     public ApplyResult Verify(PlatePreset preset, ulong owner)
     {
         if ((target ?? preset.Portrait) is not { } portrait) return new(false, "This plate has no portrait.");
-        var problem = GetEditor(owner, out var state, out var addon);
+        var problem = GetEditor(owner, out var state, out var addon, verifying);
         if (problem != null) return new(false, "Edit Portrait closed before it could be checked.");
 
         var view = state->CharaView;
@@ -122,22 +130,33 @@ public sealed unsafe class PortraitEditor
     private static string Camera(PortraitSettings p) =>
         $"position [{string.Join(", ", p.CameraPosition)}] target [{string.Join(", ", p.CameraTarget)}] zoom {p.CameraZoom} rotation {p.ImageRotation}";
 
-    internal static string? GetEditor(ulong owner, out AgentBannerEditorState* state, out AddonBannerEditor* editor)
+    /// <summary>
+    /// The open Edit Portrait, if it's the one asked for: your plate's (gearset -1), or gear set N's by its place in the
+    /// game's list of existing sets.
+    /// </summary>
+    internal static string? GetEditor(ulong owner, out AgentBannerEditorState* state, out AddonBannerEditor* editor, int gearset = -1)
     {
         state = null;
         editor = null;
-        if (PlateReader.GetOwnCard(owner, out _) is { } problem) return problem;
+        if (gearset < 0 && PlateReader.GetOwnCard(owner, out _) is { } problem) return problem;
+        if (gearset >= 0)
+        {
+            var module = RaptureGearsetModule.Instance();
+            if (module == null || module->CharacterContentId != owner) return "Log in first.";
+        }
         var addon = Plugin.GameGui.GetAddonByName("BannerEditor");
         if (addon.IsNull || !addon.IsVisible || !Plugin.Condition[ConditionFlag.EditingPortrait])
-            return "Open Edit Portrait from your adventurer plate first.";
+            return gearset < 0 ? "Open Edit Portrait from your adventurer plate first." : "Edit Portrait isn't open.";
         var pointer = Plugin.GameGui.GetAgentById((int)AgentId.BannerEditor);
         var agent = pointer.IsNull ? null : (AgentBannerEditor*)pointer.Address;
         if (!addon.IsReady || agent == null || agent->AddonId != addon.Id || agent->EditorState == null ||
             agent->EditorState->AgentBannerEditor != agent)
             return "Edit Portrait is still opening.";
         var s = agent->EditorState;
-        if (s->OpenType != AgentBannerEditorState.EditorOpenType.AdventurerPlate)
+        if (gearset < 0 && s->OpenType != AgentBannerEditorState.EditorOpenType.AdventurerPlate)
             return "That's a gear set's portrait. Open Edit Portrait from your adventurer plate instead.";
+        if (gearset >= 0 && (s->OpenType != AgentBannerEditorState.EditorOpenType.Gearset || s->OpenerEnabledGearsetIndex != gearset))
+            return "That Edit Portrait is for something else.";
         if (s->CloseDialogAddonId != 0) return "Answer the editor's dialog first.";
         if (!float.IsFinite(s->FrameCountdown) || s->FrameCountdown > 0 || s->CharaView == null ||
             !s->CharaView->CharaViewPortraitCharacterLoaded)
@@ -145,6 +164,20 @@ public sealed unsafe class PortraitEditor
         state = s;
         editor = (AddonBannerEditor*)addon.Address;
         return null;
+    }
+
+    /// <summary>True when the Edit Portrait asked for is open and ready to take a portrait.</summary>
+    public static bool Ready(ulong owner, int gearset = -1) => GetEditor(owner, out _, out _, gearset) == null;
+
+    /// <summary>Which gear set's Edit Portrait is open (its place in the game's list), or -1 when it's not a gear set's.</summary>
+    public static int OpenGearset()
+    {
+        var pointer = Plugin.GameGui.GetAgentById((int)AgentId.BannerEditor);
+        var agent = pointer.IsNull ? null : (AgentBannerEditor*)pointer.Address;
+        if (agent == null || agent->EditorState == null || !Plugin.GameGui.GetAddonByName("BannerEditor").IsVisible) return -1;
+        return agent->EditorState->OpenType == AgentBannerEditorState.EditorOpenType.Gearset
+            ? agent->EditorState->OpenerEnabledGearsetIndex
+            : -1;
     }
 
     // Same order as the editor's lists after the design preset: background, frame, accent, pose, expression.

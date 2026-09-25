@@ -4,7 +4,6 @@ using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using RePlate.Core.Plates;
@@ -13,18 +12,17 @@ using RePlate.Game;
 namespace RePlate.Windows;
 
 /// <summary>Your saved plates on the left, the selected one on the right.</summary>
-public sealed class PlatesTab(Plugin plugin, PlateImages images)
+public sealed class PlatesTab
 {
     // Long enough for the pose to load before the editor is read back.
     private static readonly TimeSpan CheckDelay = TimeSpan.FromSeconds(1);
 
-    private const string ImportPopup = "Import a shared plate###replateImport";
-    private const string DeleteQuestion = "Delete this plate and its picture?";
+    private readonly Plugin plugin;
+    private readonly PlateImages images;
+    private readonly PresetHeader header;
+    private readonly ImportPopup import;
 
     private Task<CaptureResult>? capturing;
-    private string importCode = "";
-    private string importProblem = "";
-    private SharedPlate? importPreview;
     private Task<string?>? opening;
     private Task<ApplyResult>? applying;
     private Task<ApplyResult>? checking;
@@ -35,10 +33,15 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
     private string filter = "";
     private string status = "";
     private bool statusWarning;
-    private string rename = "";
-    private bool renaming;
-    private bool confirmDelete;
     private Guid selected;
+
+    public PlatesTab(Plugin plugin, PlateImages images)
+    {
+        this.plugin = plugin;
+        this.images = images;
+        header = new PresetHeader(plugin, images, text => SetStatus(text));
+        import = new ImportPopup(plugin);
+    }
 
     public void Draw()
     {
@@ -57,7 +60,16 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         plugin.Guide.Update(PlateReader.OwnPlateOpen(owner), store.For(owner).Count, images, plugin.Restore.Running);
         plugin.Guide.DrawBar();
         DrawToolbar();
-        DrawImport(owner);
+        if (import.Draw(owner) is { } added)
+        {
+            if (added.Kind == PresetKind.Portrait) SetStatus($"Added \"{added.Name}\" to your portraits.");
+            else
+            {
+                filter = "";
+                Select(added.Id);
+                SetStatus($"Added \"{added.Name}\".");
+            }
+        }
         ImGui.Separator();
 
         var presets = store.For(owner)
@@ -100,13 +112,7 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
             plugin.Guide.Mark(GuideTarget.OpenPlate);
         }
         ImGui.SameLine();
-        if (ImGui.Button("Import"))
-        {
-            importCode = "";
-            importPreview = null;
-            importProblem = "";
-            ImGui.OpenPopup(ImportPopup);
-        }
+        if (ImGui.Button("Import")) import.Open();
         Ui.Tip("Add a plate someone shared with you, from its share code.");
         if (status.Length > 0)
         {
@@ -224,7 +230,8 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         if (plugin.Restore.TakeResult() is { } restored) SetStatus(restored.Message, !restored.Clean);
     }
 
-    private bool Busy => plugin.Designs.Running || plugin.Restore.Running || starting != null || applying != null || applied != null;
+    private bool Busy => plugin.Designs.Running || plugin.Restore.Running || plugin.GearsetRun.Running ||
+                         starting != null || applying != null || applied != null;
 
     private void StartRun(Func<ApplyResult> start, string status)
     {
@@ -246,72 +253,15 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         foreach (var preset in presets)
         {
             using var id = ImRaii.PushId(preset.Id.ToString());
-            if (preset.Favorite) DrawStar();
+            if (preset.Favorite) Summary.Star();
             if (ImGui.Selectable(preset.Name, preset.Id == selected)) Select(preset.Id);
-            DrawListMenu(preset);
+            header.Menu(preset, () => Select(preset.Id));
             var parts = (preset.Portrait != null ? "Portrait" : "") + (preset.Portrait != null && preset.Design != null ? " + " : "") +
                         (preset.Design != null ? "Design" : "");
             using (ImRaii.PushIndent())
                 ImGui.TextDisabled($"{Names.Race(preset.Race, preset.Sex)} · {preset.UpdatedAt.ToLocalTime():MM-dd-yyyy} · {parts}" +
                                    (preset.Imported ? " · Shared" : ""));
         }
-    }
-
-    // A small star before a favourite's name, a little under the text's size and centred on the line.
-    private static void DrawStar()
-    {
-        const float Scale = 0.7f;
-        var start = ImGui.GetCursorScreenPos();
-        var line = ImGui.GetTextLineHeight();
-        var icon = FontAwesomeIcon.Star.ToIconString();
-        float width;
-        using (Plugin.PluginInterface.UiBuilder.IconFontHandle.Push())
-        {
-            width = ImGui.CalcTextSize(icon).X * Scale;
-            var size = ImGui.GetFontSize() * Scale;
-            ImGui.GetWindowDrawList().AddText(ImGui.GetFont(), size, start + new Vector2(0, (line - size) / 2),
-                ImGui.GetColorU32(Theme.AccentText), icon);
-        }
-        ImGui.Dummy(new Vector2(width, line));
-        ImGui.SameLine();
-    }
-
-    // Right-click a plate in the list.
-    private void DrawListMenu(PlatePreset preset)
-    {
-        using var menu = ImRaii.ContextPopupItem("##plateMenu");
-        if (!menu.Success) return;
-        using (ImRaii.Disabled(!plugin.Store.CanWrite))
-        {
-            if (ImGui.MenuItem(preset.Favorite ? "Remove from favorites" : "Add to favorites"))
-            {
-                // Not an edit to the plate itself, so it keeps its place among the others by date.
-                preset.Favorite = !preset.Favorite;
-                plugin.Store.Save();
-            }
-            // Rename and Delete use the ones on the plate itself, so there's one of each to get right.
-            if (ImGui.MenuItem("Rename"))
-            {
-                Select(preset.Id);
-                rename = preset.Name;
-                renaming = true;
-            }
-        }
-        if (ImGui.MenuItem("Share")) CopyShareCode(preset);
-        using (ImRaii.Disabled(!plugin.Store.CanWrite))
-        {
-            if (ImGui.MenuItem("Delete"))
-            {
-                Select(preset.Id);
-                confirmDelete = true;
-            }
-        }
-    }
-
-    private void CopyShareCode(PlatePreset preset)
-    {
-        ImGui.SetClipboardText(ShareCode.Encode(preset));
-        SetStatus("Share code copied. Paste it wherever you like.");
     }
 
     private void DrawDetail(PlatePreset? preset)
@@ -322,7 +272,14 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
             return;
         }
 
-        DrawHeader(preset);
+        var subtitle = preset.Imported
+            ? $"Shared, made on {Names.Race(preset.Race, preset.Sex)} - Added {preset.CreatedAt.ToLocalTime():MM-dd-yyyy}"
+            : $"{Names.Race(preset.Race, preset.Sex)} - Created {preset.CreatedAt.ToLocalTime():MM-dd-yyyy}";
+        if (header.Draw(preset, subtitle))
+        {
+            selected = Guid.Empty;
+            return;
+        }
         ImGui.Spacing();
         DrawActions(preset);
         ImGui.Spacing();
@@ -332,9 +289,9 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
             if (table.Success)
             {
                 ImGui.TableNextColumn();
-                DrawPortrait(preset.Portrait);
+                Summary.Portrait(preset.Portrait);
                 ImGui.TableNextColumn();
-                DrawDesign(preset.Design);
+                Summary.Design(preset.Design);
             }
         }
         ImGui.Separator();
@@ -377,183 +334,11 @@ public sealed class PlatesTab(Plugin plugin, PlateImages images)
         }
     }
 
-    private void DrawHeader(PlatePreset preset)
-    {
-        if (renaming)
-        {
-            ImGui.SetNextItemWidth(260 * ImGuiHelpers.GlobalScale);
-            var enter = ImGui.InputText("##rename", ref rename, PlatePreset.MaxNameLength, ImGuiInputTextFlags.EnterReturnsTrue);
-            ImGui.SameLine();
-            if ((ImGui.Button("Save name") || enter) && PlatePreset.CleanName(rename) is { Length: > 0 } name)
-            {
-                preset.Name = name;
-                preset.UpdatedAt = DateTimeOffset.UtcNow;
-                plugin.Store.Save();
-                renaming = false;
-            }
-            ImGui.SameLine();
-            if (ImGui.Button("Cancel")) renaming = false;
-            return;
-        }
-
-        using (ImRaii.PushColor(ImGuiCol.Text, Theme.AccentText)) ImGui.TextUnformatted(preset.Name);
-        ImGui.SameLine();
-        // The buttons sit at the right edge, or straight after a name too long to leave room.
-        var style = ImGui.GetStyle();
-        string[] buttons = confirmDelete ? ["Rename", "Share", "Yes, delete", "Keep"] : ["Rename", "Share", "Delete"];
-        var width = buttons.Sum(b => ImGui.CalcTextSize(b).X + style.FramePadding.X * 2) + style.ItemSpacing.X * (buttons.Length - 1);
-        if (confirmDelete) width += ImGui.CalcTextSize(DeleteQuestion).X + style.ItemSpacing.X;
-        ImGui.SetCursorPosX(Math.Max(ImGui.GetCursorPosX(), ImGui.GetWindowContentRegionMax().X - width));
-        using (ImRaii.Disabled(!plugin.Store.CanWrite))
-        {
-            if (ImGui.SmallButton("Rename"))
-            {
-                rename = preset.Name;
-                renaming = true;
-                confirmDelete = false;
-            }
-            ImGui.SameLine();
-            if (ImGui.SmallButton("Share")) CopyShareCode(preset);
-            Ui.Tip("Copies a code anyone with RePlate can import. It holds this plate's portrait and design, " +
-                   "not who you are, and not its picture.");
-            ImGui.SameLine();
-            if (!confirmDelete)
-            {
-                if (Theme.DangerButton("Delete")) confirmDelete = true;
-            }
-            else
-            {
-                ImGui.TextColored(Theme.Warning, DeleteQuestion);
-                ImGui.SameLine();
-                if (Theme.DangerButton("Yes, delete"))
-                {
-                    plugin.Store.Remove(preset.Id);
-                    plugin.Store.Save();
-                    images.Delete(preset.Id);
-                    confirmDelete = false;
-                    selected = Guid.Empty;
-                    return;
-                }
-                ImGui.SameLine();
-                if (ImGui.SmallButton("Keep")) confirmDelete = false;
-            }
-        }
-        ImGui.TextDisabled(preset.Imported
-            ? $"Shared, made on {Names.Race(preset.Race, preset.Sex)} - Added {preset.CreatedAt.ToLocalTime():MM-dd-yyyy}"
-            : $"{Names.Race(preset.Race, preset.Sex)} - Created {preset.CreatedAt.ToLocalTime():MM-dd-yyyy}");
-    }
-
-    // Paste a code, see what it holds, add it as one of this character's plates.
-    private void DrawImport(ulong owner)
-    {
-        var scale = ImGuiHelpers.GlobalScale;
-        ImGui.SetNextWindowSize(new Vector2(600, 0) * scale, ImGuiCond.Appearing);
-        if (!ImGui.BeginPopupModal(ImportPopup, ImGuiWindowFlags.AlwaysAutoResize)) return;
-
-        ImGui.TextUnformatted("Paste a RePlate share code:");
-        if (ImGui.InputTextMultiline("##code", ref importCode, 5000, new Vector2(560 * scale, 70 * scale)))
-            ReadImport();
-        if (ImGui.Button("Paste from clipboard"))
-        {
-            importCode = ImGui.GetClipboardText() ?? "";
-            ReadImport();
-        }
-        if (importProblem.Length > 0) ImGui.TextColored(Theme.Warning, importProblem);
-
-        if (importPreview is { } shared)
-        {
-            ImGui.Spacing();
-            using (ImRaii.PushColor(ImGuiCol.Text, Theme.AccentText)) ImGui.TextUnformatted(shared.Name.Length > 0 ? shared.Name : "Shared plate");
-            if (Names.Race(shared.Race, shared.Sex) is { Length: > 0 } race) ImGui.TextDisabled($"Made on {race}");
-            using (var table = ImRaii.Table("##preview", 2, ImGuiTableFlags.SizingStretchSame))
-            {
-                if (table.Success)
-                {
-                    ImGui.TableNextColumn();
-                    DrawPortrait(shared.Portrait);
-                    ImGui.TableNextColumn();
-                    DrawDesign(shared.Design);
-                }
-            }
-            ImGui.Spacing();
-            using (ImRaii.PushColor(ImGuiCol.Text, Theme.Muted))
-                ImGui.TextWrapped("Anything this character hasn't unlocked keeps your own choice. Restore stops before saving " +
-                                  "so you can look it over; on a different race the camera may need a nudge.");
-        }
-
-        ImGui.Separator();
-        using (ImRaii.Disabled(importPreview == null || !plugin.Store.CanWrite))
-        {
-            if (Theme.PrimaryButton("Add to my plates") && importPreview != null)
-            {
-                var preset = ShareCode.ToPreset(importPreview, owner);
-                plugin.Store.Add(preset);
-                plugin.Store.Save();
-                filter = "";
-                Select(preset.Id);
-                SetStatus($"Added \"{preset.Name}\".");
-                ImGui.CloseCurrentPopup();
-            }
-        }
-        ImGui.SameLine();
-        if (ImGui.Button("Cancel")) ImGui.CloseCurrentPopup();
-        ImGui.EndPopup();
-    }
-
-    private void ReadImport()
-    {
-        importPreview = importCode.Trim().Length == 0 ? null : ShareCode.Decode(importCode, out importProblem);
-        if (importCode.Trim().Length == 0) importProblem = "";
-    }
-
-    private static void DrawPortrait(PortraitSettings? portrait)
-    {
-        Theme.Section("Portrait");
-        if (portrait == null)
-        {
-            ImGui.TextDisabled("Not saved with this plate.");
-            return;
-        }
-        Line("Pose", Names.Pose(portrait.Pose));
-        Line("Expression", Names.Expression(portrait.Expression));
-        Line("Background", Names.Background(portrait.Background));
-        Line("Frame", Names.Frame(portrait.Frame));
-        Line("Accent", Names.Accent(portrait.Accent));
-    }
-
-    private static void DrawDesign(PlateDesign? design)
-    {
-        Theme.Section("Plate design");
-        if (design == null)
-        {
-            ImGui.TextDisabled("Not saved with this plate.");
-            return;
-        }
-        // Every part is listed, None included, so plates line up when you flick between them.
-        Line("Base plate", Names.BasePlate(design.BasePlate));
-        Line("Pattern overlay", Names.Decoration(design, DecorationKind.Pattern));
-        Line("Backing", Names.Decoration(design, DecorationKind.Backing));
-        Line("Top border", Names.Border(design.TopBorder));
-        Line("Bottom border", Names.Border(design.BottomBorder));
-        Line("Portrait frame", Names.Decoration(design, DecorationKind.PortraitFrame));
-        Line("Plate frame", Names.Decoration(design, DecorationKind.PlateFrame));
-        Line("Accent", Names.Decoration(design, DecorationKind.Accent));
-        Line("Layout", design.InvertPortraitPlacement ? "Flipped" : "Standard");
-    }
-
-    private static void Line(string label, string value)
-    {
-        ImGui.TextDisabled(label);
-        ImGui.SameLine(110 * ImGuiHelpers.GlobalScale);
-        ImGui.TextUnformatted(value);
-    }
-
     private void Select(Guid id)
     {
         if (id == selected) return;
         selected = id;
-        renaming = false;
-        confirmDelete = false;
+        header.Reset();
         images.Select(id);
     }
 }
