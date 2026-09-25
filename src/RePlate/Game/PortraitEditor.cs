@@ -237,6 +237,17 @@ public sealed unsafe class PortraitEditor
         }
     }
 
+    /// <summary>Whether the Edit Portrait asked for has unsaved changes; null while it isn't open and settled.</summary>
+    public static bool? Unsaved(ulong owner, int gearset = -1) =>
+        GetEditor(owner, out var state, out _, gearset) == null ? state->HasDataChanged : null;
+
+    /// <summary>Closes Edit Portrait with its own close button. Only for when nothing is left unsaved.</summary>
+    public static bool Close()
+    {
+        var addon = Plugin.GameGui.GetAddonByName("BannerEditor");
+        return !addon.IsNull && addon.IsVisible && Clicks.ButtonWithParam((AtkUnitBase*)addon.Address, 8);
+    }
+
     /// <summary>True when the Edit Portrait asked for is open and ready to take a portrait.</summary>
     public static bool Ready(ulong owner, int gearset = -1) => GetEditor(owner, out _, out _, gearset) == null;
 

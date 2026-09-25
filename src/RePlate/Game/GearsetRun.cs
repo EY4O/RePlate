@@ -18,6 +18,7 @@ public sealed class GearsetRun(PortraitEditor portraits)
     private static readonly TimeSpan Pace = TimeSpan.FromMilliseconds(500);
     private static readonly TimeSpan StepLimit = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan SettleTime = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan CloseDelay = TimeSpan.FromSeconds(1.5);
 
     private readonly List<GearsetInfo> queue = [];
     private readonly List<string> saved = [];
@@ -28,6 +29,9 @@ public sealed class GearsetRun(PortraitEditor portraits)
     private Step step;
     private bool reapplied;
     private bool triedList;
+    private bool pressedSave;
+    private bool closing;
+    private DateTime savedAt;
     private string before = "";
     private DateTime stepStarted;
     private DateTime nextAction;
@@ -158,17 +162,34 @@ public sealed class GearsetRun(PortraitEditor portraits)
                     return;
                 }
                 var warning = portraits.GameWarning is { } w ? $" The game warns that {w}." : "";
-                Progress = $"{label}: Portrait applied! Look it over, press Save if it's looking good, then close Edit Portrait. " +
-                           $"Closing without saving skips it.{warning}{portraits.Kept}";
+                Progress = $"{label}: Portrait applied! Look it over and press Save if it's looking good; RePlate closes the " +
+                           $"editor for you after. Closing without saving skips it.{warning}{portraits.Kept}";
+                pressedSave = false;
+                closing = false;
                 Go(Step.Review);
                 return;
 
             case Step.Review:
-                if (Visible("BannerEditor")) return;
-                // The gear set's saved portrait changed: the player saved it.
-                var changed = Fingerprint(gearset.Id) != before;
-                (changed ? saved : notSaved).Add(Title(gearset));
-                Plugin.Log.Information($"{Title(gearset)}: {(changed ? "saved" : "not saved")}.");
+                if (Visible("BannerEditor"))
+                {
+                    // Save clears the editor's unsaved changes: that's the player saving, even when nothing changed.
+                    if (!pressedSave && PortraitEditor.Unsaved(owner, gearset.EnabledIndex) == false)
+                    {
+                        pressedSave = true;
+                        savedAt = DateTime.UtcNow;
+                        Progress = $"{label}: saved. Closing Edit Portrait...";
+                    }
+                    // A moment to see it saved, then close it for them; with nothing unsaved there's no question to answer.
+                    if (pressedSave && !closing && DateTime.UtcNow - savedAt > CloseDelay)
+                    {
+                        closing = true;
+                        if (!PortraitEditor.Close()) Progress = $"{label}: saved. Close Edit Portrait to go on.";
+                    }
+                    return;
+                }
+                var done = pressedSave || Fingerprint(gearset.Id) != before;
+                (done ? saved : notSaved).Add(Title(gearset));
+                Plugin.Log.Information($"{Title(gearset)}: {(done ? "saved" : "not saved")}.");
                 Go(Step.Next);
                 Wait(TimeSpan.FromSeconds(1));
                 return;
