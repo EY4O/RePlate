@@ -65,7 +65,7 @@ public sealed class GearsetRun(PortraitEditor portraits)
         finished = null;
         index = 0;
         Go(Step.Open);
-        Plugin.Log.Information($"Putting \"{preset.Name}\" on {gearsets.Count} gear sets.");
+        Plugin.Log.Information($"Putting \"{preset.Name}\" on {gearsets.Count} gear set{(gearsets.Count == 1 ? "" : "s")}.");
         return new(true, Progress);
     }
 
@@ -105,7 +105,8 @@ public sealed class GearsetRun(PortraitEditor portraits)
             case Step.Open:
                 if (Visible("BannerEditor")) return;
                 before = Fingerprint(gearset.Id);
-                if (Gearsets.OpenEditor(gearset) is { } problem)
+                // The Gear Set list's own Edit Portrait has been the reliable way in; the editor's opener is the fallback.
+                if (Gearsets.OpenEditorFromList(gearset) is { } problem)
                 {
                     Stop(problem);
                     return;
@@ -121,12 +122,12 @@ public sealed class GearsetRun(PortraitEditor portraits)
                     Go(Step.Apply);
                     return;
                 }
-                // Nothing showed up: try the Gear Set list's own Edit Portrait once.
+                // Nothing showed up: try the portrait editor's own opener once.
                 if (!triedList && !Visible("BannerEditor") && DateTime.UtcNow - stepStarted > TimeSpan.FromSeconds(3))
                 {
                     triedList = true;
-                    Plugin.Log.Information($"{Title(gearset)}: Edit Portrait didn't open; trying the Gear Set list's own.");
-                    if (Gearsets.OpenEditorFromList(gearset) is { } listProblem) Stop(listProblem);
+                    Plugin.Log.Information($"{Title(gearset)}: Edit Portrait didn't open; trying the portrait editor's own opener.");
+                    if (Gearsets.OpenEditor(gearset) is { } openerProblem) Stop(openerProblem);
                 }
                 return;
 

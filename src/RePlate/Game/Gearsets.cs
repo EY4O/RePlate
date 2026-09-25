@@ -30,7 +30,7 @@ public static unsafe class Gearsets
         return result;
     }
 
-    /// <summary>Opens a gear set's Edit Portrait through the portrait editor's own opener.</summary>
+    /// <summary>Opens a gear set's Edit Portrait through the portrait editor's own opener; the fallback, as it doesn't always open.</summary>
     public static string? OpenEditor(GearsetInfo gearset)
     {
         var agent = AgentBannerEditor.Instance();
@@ -56,7 +56,7 @@ public static unsafe class Gearsets
         return null;
     }
 
-    /// <summary>The same through the Gear Set list's own "Edit Portrait", for when the first way doesn't open it.</summary>
+    /// <summary>Opens a gear set's Edit Portrait the way its "Edit Portrait" in the Gear Set list does.</summary>
     public static string? OpenEditorFromList(GearsetInfo gearset)
     {
         var agent = AgentGearSet.Instance();
