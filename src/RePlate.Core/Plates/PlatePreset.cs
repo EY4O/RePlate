@@ -50,11 +50,15 @@ public sealed record PlateDesign
     public required bool InvertPortraitPlacement { get; init; }
 }
 
+/// <summary>An adventure plate (portrait and design), or a portrait on its own for gear sets.</summary>
+public enum PresetKind { Plate, Portrait }
+
 public sealed class PlatePreset
 {
     public const int MaxNameLength = 64;
 
     public Guid Id { get; set; } = Guid.NewGuid();
+    public PresetKind Kind { get; set; }
     public string Name { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
@@ -65,6 +69,9 @@ public sealed class PlatePreset
     public uint Race { get; set; }
     public uint Tribe { get; set; }
     public byte Sex { get; set; }
+
+    /// <summary>The job a portrait was saved from, for its job icon; 0 when not known.</summary>
+    public byte ClassJob { get; set; }
 
     public PortraitSettings? Portrait { get; set; }
     public PlateDesign? Design { get; set; }

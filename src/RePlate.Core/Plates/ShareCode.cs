@@ -5,7 +5,8 @@ using System.Text.Json;
 namespace RePlate.Core.Plates;
 
 /// <summary>What a share code carries: the plate, its name, and the body it was made on. Nothing about the sharer.</summary>
-public sealed record SharedPlate(string Name, uint Race, uint Tribe, byte Sex, PortraitSettings? Portrait, PlateDesign? Design);
+public sealed record SharedPlate(string Name, uint Race, uint Tribe, byte Sex, PortraitSettings? Portrait, PlateDesign? Design,
+    PresetKind Kind = PresetKind.Plate, byte ClassJob = 0);
 
 /// <summary>
 /// Turns a plate into a short text code and back. The code is "RePlate1:" followed by compressed JSON in URL-safe
@@ -24,7 +25,8 @@ public static class ShareCode
 
     public static string Encode(PlatePreset preset)
     {
-        var shared = new SharedPlate(preset.Name, preset.Race, preset.Tribe, preset.Sex, preset.Portrait, preset.Design);
+        var shared = new SharedPlate(preset.Name, preset.Race, preset.Tribe, preset.Sex, preset.Portrait, preset.Design,
+            preset.Kind, preset.ClassJob);
         var json = JsonSerializer.SerializeToUtf8Bytes(shared, Options);
         using var packed = new MemoryStream();
         using (var deflate = new DeflateStream(packed, CompressionLevel.SmallestSize, true)) deflate.Write(json);
@@ -90,6 +92,8 @@ public static class ShareCode
             Sex = shared.Sex,
             Portrait = shared.Portrait,
             Design = shared.Design,
+            Kind = shared.Kind,
+            ClassJob = shared.ClassJob,
             Imported = true,
         };
     }
@@ -97,6 +101,8 @@ public static class ShareCode
     private static bool Sensible(SharedPlate shared)
     {
         if (shared.Portrait == null && shared.Design == null) return false;
+        if (!Enum.IsDefined(shared.Kind) || shared.Kind == PresetKind.Portrait && (shared.Portrait == null || shared.Design != null))
+            return false;
         if (shared.Sex > 1 || shared.Race > 100 || shared.Tribe > 100) return false;
         if (shared.Portrait is { } p)
         {
