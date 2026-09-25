@@ -193,7 +193,7 @@ public sealed unsafe class PortraitEditor
         if (!editor.IsNull && editor.IsVisible && UprightPicture((AtkUnitBase*)editor.Address, looked) is { } editing) return editing;
 
         // Nothing fitted: say what was there, so the right picture can be found.
-        Plugin.Log.Information($"No portrait found for the crop. Portraits agent {(portraits == null ? "missing" : portraits->IsAgentActive() ? "open" : "closed")}; " +
+        Plugin.Log.Debug($"No portrait found for the crop. Portraits agent {(portraits == null ? "missing" : portraits->IsAgentActive() ? "open" : "closed")}; " +
                                (looked.Count == 0 ? "no portrait windows open." : string.Join("; ", looked)));
         return editor.IsNull || !editor.IsVisible ? null : (editor.Position, editor.ScaledSize);
     }
@@ -212,7 +212,7 @@ public sealed unsafe class PortraitEditor
         looked.Add($"{unit->NameString}{size}: {(seen.Length > 0 ? seen : "no upright pictures")}");
         if (tall.Count == 0) return null;
         var best = tall[0];
-        Plugin.Log.Information($"Portrait for the crop: {unit->NameString} node #{best.Node}, {best.Bounds.Width}x{best.Bounds.Height} " +
+        Plugin.Log.Debug($"Portrait for the crop: {unit->NameString} node #{best.Node}, {best.Bounds.Width}x{best.Bounds.Height} " +
                                $"at {best.Bounds.Pos1.X},{best.Bounds.Pos1.Y} (upright pictures: {seen}).");
         return (new System.Numerics.Vector2(best.Bounds.Pos1.X, best.Bounds.Pos1.Y),
                 new System.Numerics.Vector2(best.Bounds.Width, best.Bounds.Height));
