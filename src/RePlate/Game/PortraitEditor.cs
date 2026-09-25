@@ -168,15 +168,29 @@ public sealed unsafe class PortraitEditor
     }
 
     /// <summary>
-    /// Where the portrait preview in Edit Portrait is on screen, for suggesting a crop: the window's largest picture.
-    /// The whole window when that can't be found, and null when Edit Portrait isn't open.
+    /// Where a portrait is on screen, for suggesting a crop: the game's Portraits window if it's open (its framed
+    /// preview), otherwise Edit Portrait's preview. Null when neither is open.
     /// </summary>
     public static (System.Numerics.Vector2 Position, System.Numerics.Vector2 Size)? Window()
     {
-        var addon = Plugin.GameGui.GetAddonByName("BannerEditor");
-        if (addon.IsNull || !addon.IsVisible) return null;
+        // The Portraits window has no struct of its own, so it's found through its agent.
+        var pointer = Plugin.GameGui.GetAgentById((int)AgentId.BannerList);
+        var portraits = pointer.IsNull ? null : (AgentInterface*)pointer.Address;
+        var stage = AtkStage.Instance();
+        if (portraits != null && portraits->IsAgentActive() && stage != null)
+        {
+            var unit = stage->RaptureAtkUnitManager->GetAddonById((ushort)portraits->AddonId);
+            if (unit != null && unit->IsVisible && LargestPicture(unit) is { } preview) return preview;
+        }
 
-        var unit = (AtkUnitBase*)addon.Address;
+        var editor = Plugin.GameGui.GetAddonByName("BannerEditor");
+        if (editor.IsNull || !editor.IsVisible) return null;
+        return LargestPicture((AtkUnitBase*)editor.Address) ?? (editor.Position, editor.ScaledSize);
+    }
+
+    // The preview is the window's largest picture; anything much smaller is an icon or a border.
+    private static (System.Numerics.Vector2 Position, System.Numerics.Vector2 Size)? LargestPicture(AtkUnitBase* unit)
+    {
         Bounds best = default;
         var bestArea = 0;
         uint bestNode = 0;
@@ -192,9 +206,8 @@ public sealed unsafe class PortraitEditor
             bestArea = area;
             bestNode = node->NodeId;
         }
-        // Anything smaller than this is an icon or a border, not the preview.
-        if (bestArea < 150 * 150) return (addon.Position, addon.ScaledSize);
-        Plugin.Log.Debug($"Portrait preview for the crop: node #{bestNode}, {best.Width}x{best.Height} at {best.Pos1.X},{best.Pos1.Y}.");
+        if (bestArea < 150 * 150) return null;
+        Plugin.Log.Debug($"Portrait for the crop: {unit->NameString} node #{bestNode}, {best.Width}x{best.Height} at {best.Pos1.X},{best.Pos1.Y}.");
         return (new System.Numerics.Vector2(best.Pos1.X, best.Pos1.Y), new System.Numerics.Vector2(best.Width, best.Height));
     }
 
