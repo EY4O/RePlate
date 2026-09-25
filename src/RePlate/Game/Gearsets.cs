@@ -39,6 +39,16 @@ public static unsafe class Gearsets
         return null;
     }
 
+    /// <summary>Opens the game's Portraits window, as the character menu does.</summary>
+    public static string? OpenPortraitsWindow()
+    {
+        var pointer = Plugin.GameGui.GetAgentById((int)AgentId.BannerList);
+        if (pointer.IsNull) return "The Portraits window isn't available right now.";
+        var agent = (AgentInterface*)pointer.Address;
+        if (!agent->IsAgentActive()) agent->Show();
+        return null;
+    }
+
     /// <summary>The same through the Gear Set list's own "Edit Portrait", for when the first way doesn't open it.</summary>
     public static string? OpenEditorFromList(GearsetInfo gearset)
     {

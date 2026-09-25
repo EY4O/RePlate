@@ -33,6 +33,7 @@ public sealed class PortraitsTab
     private List<GearsetInfo> gearsets = [];
     private readonly HashSet<int> ticked = [];
 
+    private Task<string?>? opening;
     private Task<ApplyResult>? applying;
     private Task<ApplyResult>? checking;
     private Task<ApplyResult>? starting;
@@ -114,6 +115,13 @@ public sealed class PortraitsTab
             if (Theme.PrimaryButton("Save from gear set")) LoadGearsets(owner, FromGearsetPopup);
         }
         Ui.TipAlways("Saves a copy of one of your gear sets' portraits.");
+        ImGui.SameLine();
+        using (ImRaii.Disabled(opening != null))
+        {
+            if (ImGui.Button("Open my Portraits"))
+                opening = Plugin.Framework.RunOnFrameworkThread(Gearsets.OpenPortraitsWindow);
+        }
+        Ui.TipAlways("Opens the game's Portraits window, as from the character menu. Its preview is also what a captured picture is fitted to.");
         ImGui.SameLine();
         if (ImGui.Button("Import")) import.Open();
         Ui.Tip("Add a portrait someone shared with you, from its share code.");
@@ -398,6 +406,13 @@ public sealed class PortraitsTab
 
     private void FinishTasks(ulong owner)
     {
+        if (opening is { IsCompleted: true } open)
+        {
+            opening = null;
+            if (!open.IsCompletedSuccessfully) SetStatus("Couldn't open the Portraits window.", true);
+            else if (open.Result is { } problem) SetStatus(problem, true);
+        }
+
         if (loadingGearsets is { IsCompleted: true } loaded)
         {
             loadingGearsets = null;
