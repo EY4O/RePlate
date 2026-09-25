@@ -4,7 +4,8 @@
 
 <p align="center"><strong>Save and restore your adventurer plate.</strong></p>
 
-Keep copies of your adventurer plate and put any of them back in one click, after a Fantasia or just a change of mind.
+Keep copies of your adventurer plate and your gear sets' portraits, and put any of them back, after a Fantasia or
+just a change of mind.
 
 ## Features
 

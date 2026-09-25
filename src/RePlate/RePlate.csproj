@@ -5,8 +5,8 @@
     <Author>Looneth</Author>
     <Name>RePlate</Name>
     <Punchline>Save and restore your adventurer plate.</Punchline>
-    <Description>Save your adventurer plate's portrait and design, and put them back in one click.</Description>
-    <Tags>adventurer plate;portrait;preset</Tags>
+    <Description>Save your adventurer plate and your gear sets' portraits, and put them back whenever you like. Share them as codes, too.</Description>
+    <Tags>adventurer plate;portrait;gear set;preset</Tags>
     <RepoUrl>https://github.com/EY4O/RePlate</RepoUrl>
     <IconUrl>https://ey4o.github.io/XIV-Plugins/assets/replate-icon.png</IconUrl>
     <AcceptsFeedback>false</AcceptsFeedback>
