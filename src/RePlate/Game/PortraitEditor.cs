@@ -207,7 +207,7 @@ public sealed unsafe class PortraitEditor
             bestNode = node->NodeId;
         }
         if (bestArea < 150 * 150) return null;
-        Plugin.Log.Debug($"Portrait for the crop: {unit->NameString} node #{bestNode}, {best.Width}x{best.Height} at {best.Pos1.X},{best.Pos1.Y}.");
+        Plugin.Log.Information($"Portrait for the crop: {unit->NameString} node #{bestNode}, {best.Width}x{best.Height} at {best.Pos1.X},{best.Pos1.Y}.");
         return (new System.Numerics.Vector2(best.Pos1.X, best.Pos1.Y), new System.Numerics.Vector2(best.Width, best.Height));
     }
 
