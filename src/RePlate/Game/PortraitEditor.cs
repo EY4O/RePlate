@@ -5,7 +5,9 @@ using Dalamud.Game.ClientState.Conditions;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
+using FFXIVClientStructs.FFXIV.Component.Exd;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using Lumina.Excel.Sheets;
 using RePlate.Core.Plates;
 using Bounds = FFXIVClientStructs.FFXIV.Common.Math.Bounds;
 
@@ -90,7 +92,11 @@ public sealed unsafe class PortraitEditor
         var ids = ListIds(portrait);
         for (var i = 0; i < sets.Length; i++)
             if (listOk[i] && IndexOf(sets[i], ids[i]) is >= 0 and var index) Dropdown(addon, i + 1)->SelectItem(index);
-        // The design preset list is left alone: its rows don't line up with the game's preset lookup.
+        if (portrait.Background != current.Background || portrait.Frame != current.Frame || portrait.Accent != current.Accent)
+            ShowDesignPreset(state, addon, portrait);
+        // The portrait now has its own head and eye directions, so the boxes that point them at the camera are cleared.
+        if (addon->HeadFacingCameraCheckbox != null) addon->HeadFacingCameraCheckbox->SetChecked(false);
+        if (addon->EyesFacingCameraCheckbox != null) addon->EyesFacingCameraCheckbox->SetChecked(false);
 
         state->SetHasChanged(true);
 
@@ -280,7 +286,23 @@ public sealed unsafe class PortraitEditor
 
     private static uint[] ListIds(PortraitSettings p) => [p.Background, p.Frame, p.Accent, p.Pose, p.Expression];
 
+    // The design preset list shows the preset these three make up, or "Custom", its last row, which only shows once
+    // the list is made that long. HaselTweaks' Portrait Helper refreshes it the same way.
+    private static void ShowDesignPreset(AgentBannerEditorState* state, AddonBannerEditor* addon, PortraitSettings portrait)
+    {
+        var list = Dropdown(addon, 0);
+        if (list == null || list->List == null || addon->NumPresets <= 0) return;
+        var index = state->GetPresetIndex(portrait.Background, portrait.Frame, portrait.Accent);
+        if (index < 0)
+        {
+            index = addon->NumPresets - 1;
+            list->List->SetItemCount(addon->NumPresets);
+        }
+        list->SelectItem(index);
+    }
+
     // The lists (background, frame, accent, pose, expression) whose saved choice this character can't pick, and why.
+    // A choice has to be in the editor's own list and pass the game's unlock check for it (as HaselTweaks checks).
     private static List<(int List, bool OtherJob)> Unavailable(AgentBannerEditorState* state, PortraitSettings portrait)
     {
         var sets = Datasets(state);
@@ -291,10 +313,42 @@ public sealed unsafe class PortraitEditor
             // Zero means none, which the lists don't carry.
             if (ids[i] == 0) continue;
             var entry = Find(sets[i], ids[i]);
-            if (entry == null) result.Add((i, false));
+            var listed = entry != null;
+            var unlocked = Condition(i, ids[i]) is { } condition && ConditionUnlocked(condition);
+            if (listed != unlocked)
+                Plugin.Log.Information($"{ListParts[i]} {Name(i, ids[i])}: the editor's list says {(listed ? "unlocked" : "locked")}, " +
+                                       $"its unlock condition says {(unlocked ? "unlocked" : "locked")}.");
+            if (!listed || !unlocked) result.Add((i, false));
             else if (i == 3 && !entry->ClassJobMatches) result.Add((i, true));
         }
         return result;
+    }
+
+    // The unlock condition a background, frame, accent, pose or expression names; null when there's no such row.
+    private static uint? Condition(int list, uint id)
+    {
+        var data = Plugin.DataManager;
+        return list switch
+        {
+            0 => data.GetExcelSheet<BannerBg>().GetRowOrDefault(id)?.UnlockCondition.RowId,
+            1 => data.GetExcelSheet<BannerFrame>().GetRowOrDefault(id)?.UnlockCondition.RowId,
+            2 => data.GetExcelSheet<BannerDecoration>().GetRowOrDefault(id)?.UnlockCondition.RowId,
+            3 => data.GetExcelSheet<BannerTimeline>().GetRowOrDefault(id)?.UnlockCondition.RowId,
+            _ => data.GetExcelSheet<BannerFacial>().GetRowOrDefault(id)?.UnlockCondition.RowId,
+        };
+    }
+
+    // The game's own answer to whether this character meets an unlock condition. Zero is no condition at all.
+    private static bool ConditionUnlocked(uint condition)
+    {
+        if (condition == 0) return true;
+        var ui = UIModule.Instance();
+        var exd = ui == null ? null : ui->GetExcelModuleInterface()->ExdModule;
+        if (exd == null) return false;
+        var sheet = exd->GetSheetByName("BannerCondition");
+        if (sheet == null) return false;
+        var row = exd->GetRowBySheetAndRowId(sheet, condition);
+        return row != null && row->Data != null && ExdModule.GetBannerConditionUnlockState(row->Data) == 0;
     }
 
     // Your own plates are refused when something's missing; a shared one keeps your choice for it instead.
@@ -340,7 +394,7 @@ public sealed unsafe class PortraitEditor
     {
         if (set->UnlockedEntries == null) return -1;
         for (var i = 0; i < set->UnlockedEntriesCount; i++)
-            if (set->UnlockedEntries[i] != null && set->UnlockedEntries[i]->RowId == id) return i;
+            if (set->UnlockedEntries[i] != null && set->UnlockedEntries[i]->RowId == id && set->UnlockedEntries[i]->Row != 0) return i;
         return -1;
     }
 
