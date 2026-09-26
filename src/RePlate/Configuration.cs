@@ -23,7 +23,7 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Restore stops with the editor open, before Save, so you can look it over and save it yourself.</summary>
     public bool PauseBeforeSave { get; set; } = true;
 
-    /// <summary>A button above your own adventurer plate that opens RePlate.</summary>
+    /// <summary>A button above your plate's edit menu that opens RePlate.</summary>
     public bool ShowPlateToolbar { get; set; } = true;
 
     public bool UseTheme { get; set; } = true;

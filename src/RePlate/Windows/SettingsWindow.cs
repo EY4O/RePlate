@@ -45,8 +45,9 @@ public sealed class SettingsWindow : ThemedWindow
                     "Save yourself. Press Restore again afterwards for the other part.",
                     () => Checkbox("##pause", c.PauseBeforeSave, v => c.PauseBeforeSave = v));
             if (grid.Success)
-                changed |= Row("Button above your plate",
-                    "Shows a RePlate button above the top-right of your adventurer plate, to open RePlate from there.",
+                changed |= Row("Button by your plate",
+                    "Shows a RePlate button above the window beside your adventurer plate with Edit Portrait and Edit Plate " +
+                    "Design, to open RePlate from there.",
                     () => Checkbox("##plateToolbar", c.ShowPlateToolbar, v => c.ShowPlateToolbar = v));
         }
 
