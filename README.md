@@ -18,6 +18,13 @@ just a change of mind.
 - Custom thumbnails: Snap an in-game screenshot or drop in a PNG so you can instantly recognize which plate is which.
 - One-file backups: Export your entire collection (portraits, plates, and thumbnails) into a single file to move between characters or transfer to a new PC.
 
+## How it works
+
+- RePlate only uses the game's own windows. It opens your plate, picks Edit Portrait or Edit Plate Design, and fills them in the same way you would by hand.
+- Nothing is saved unless you say so. By default it stops before Save so you can check the result, and shared plates and gear set portraits always do.
+- Anything your character hasn't unlocked is checked with the game's own unlock check and left as it was.
+- No network, no hooks, and nothing about other players is kept. Your plates and pictures stay in your Dalamud settings folder.
+
 ## Installation
 
 1. In game, open `/xlsettings`.
