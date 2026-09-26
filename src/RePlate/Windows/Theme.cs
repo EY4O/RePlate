@@ -131,6 +131,14 @@ internal static class Theme
         return ImGuiComponents.IconButton(id, icon);
     }
 
+    /// <summary>Filled with a brand's own colour (0xRRGGBB), theme or not, with text that stays readable on it.</summary>
+    public static bool BrandButton(FontAwesomeIcon icon, string text, uint rgb)
+    {
+        var fill = Rgb(rgb);
+        using var colors = Filled(fill, TextOn(fill), true);
+        return ImGuiComponents.IconButtonWithText(icon, text);
+    }
+
     /// <summary>For removing things: red with the theme, red text without.</summary>
     public static bool DangerButton(string label)
     {
@@ -144,15 +152,11 @@ internal static class Theme
             .Push(ImGuiCol.ButtonActive, Darker(fill), condition)
             .Push(ImGuiCol.Text, text, condition);
 
-    // Dark text on a light accent, white on a dark one.
-    private static Vector4 OnAccent
-    {
-        get
-        {
-            var a = Accent;
-            return 0.2126f * a.X + 0.7152f * a.Y + 0.0722f * a.Z > 0.5f ? Rgb(0x1E1606) : White;
-        }
-    }
+    private static Vector4 OnAccent => TextOn(Accent);
+
+    // Dark text on a light fill, white on a dark one.
+    private static Vector4 TextOn(Vector4 fill) =>
+        0.2126f * fill.X + 0.7152f * fill.Y + 0.0722f * fill.Z > 0.5f ? Rgb(0x1E1606) : White;
 
     /// <summary>A short status in a tinted, rounded label. Plain coloured text with the theme off.</summary>
     public static void Pill(string text, Tone tone)

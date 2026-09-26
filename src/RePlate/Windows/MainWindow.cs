@@ -10,13 +10,9 @@ namespace RePlate.Windows;
 
 public sealed class MainWindow : ThemedWindow
 {
-    private const string PatreonUrl = "https://www.patreon.com/Looneth";
-    private const string KoFiUrl = "https://ko-fi.com/looneth";
-
     private readonly PlatesTab plates;
     private readonly PortraitsTab portraits;
     private readonly AboutTab about;
-    private float supportWidth;
     private bool showPlates;
     private bool showPortraits;
 
@@ -53,12 +49,8 @@ public sealed class MainWindow : ThemedWindow
 
     public override void Draw()
     {
-        var tabRow = ImGui.GetCursorPos();
-        using (var tabs = ImRaii.TabBar("##tabs"))
-        {
-            if (tabs.Success) DrawTabs();
-        }
-        DrawSupport(tabRow);
+        using var tabs = ImRaii.TabBar("##tabs");
+        if (tabs.Success) DrawTabs();
     }
 
     private void DrawTabs()
@@ -79,16 +71,5 @@ public sealed class MainWindow : ThemedWindow
         {
             if (tab.Success) about.Draw();
         }
-    }
-
-    // Sits at the right end of the tab row. Left click Patreon, right click Ko-fi.
-    private void DrawSupport(Vector2 tabRow)
-    {
-        ImGui.SetCursorPos(new Vector2(Math.Max(tabRow.X, ImGui.GetWindowContentRegionMax().X - supportWidth), tabRow.Y));
-        if (Theme.AccentIconButton(FontAwesomeIcon.Heart, "Patreon / Ko-fi")) Ui.OpenUrl(PatreonUrl);
-        if (ImGui.IsItemClicked(ImGuiMouseButton.Right)) Ui.OpenUrl(KoFiUrl);
-        supportWidth = ImGui.GetItemRectSize().X;
-        Ui.Tip("If you're enjoying RePlate, please consider donating.\n\n" +
-               "Left click: Patreon\nRight click: Ko-fi");
     }
 }
