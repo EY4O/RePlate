@@ -382,7 +382,7 @@ public sealed unsafe class DesignEditor
         {
             if (c == '\u0002') inCode = true;
             else if (c == '\u0003') inCode = false;
-            else if (!inCode && !char.IsControl(c) && c is not ('­' or '​' or '‌' or '‍' or '﻿'))
+            else if (!inCode && !char.IsControl(c) && c is not ('\u00AD' or '\u200B' or '\u200C' or '\u200D' or '\uFEFF'))
                 kept.Append(char.IsWhiteSpace(c) ? ' ' : c);
         }
         return string.Join(' ', kept.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));
