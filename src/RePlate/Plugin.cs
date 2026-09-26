@@ -32,6 +32,7 @@ public sealed class Plugin : IDalamudPlugin
     private static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(1);
 
     private readonly WindowSystem windows = new("RePlate");
+    private readonly PlateToolbar plateToolbar;
     private readonly PlateImages images;
     private readonly PlateImages portraitImages;
     private readonly Thumbnails thumbnails;
@@ -67,6 +68,7 @@ public sealed class Plugin : IDalamudPlugin
         settings = new SettingsWindow(this);
         welcome = new WelcomeWindow(this);
         windows.AddWindow(MainWindow);
+        plateToolbar = new PlateToolbar(this);
         windows.AddWindow(settings);
         windows.AddWindow(welcome);
         if (!Configuration.WelcomeSeen) welcome.Open();
@@ -107,6 +109,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public void ToggleMainWindow() => MainWindow.Toggle();
     public void ShowMainWindow() => MainWindow.IsOpen = true;
+    public void ShowPlates() => MainWindow.ShowPlates();
     public void ToggleSettings() => settings.Toggle();
     public void OpenWelcome() => welcome.Open();
 
@@ -153,6 +156,7 @@ public sealed class Plugin : IDalamudPlugin
     private void Draw()
     {
         windows.Draw();
+        plateToolbar.Draw();
         images.DrawDialog();
         portraitImages.DrawDialog();
     }

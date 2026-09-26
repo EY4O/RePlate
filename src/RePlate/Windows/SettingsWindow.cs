@@ -44,6 +44,10 @@ public sealed class SettingsWindow : ThemedWindow
                     "Restore puts the portrait or design in and stops with the editor open, so you can look it over and press " +
                     "Save yourself. Press Restore again afterwards for the other part.",
                     () => Checkbox("##pause", c.PauseBeforeSave, v => c.PauseBeforeSave = v));
+            if (grid.Success)
+                changed |= Row("Button above your plate",
+                    "Shows a RePlate button above the top-right of your adventurer plate, to open RePlate from there.",
+                    () => Checkbox("##plateToolbar", c.ShowPlateToolbar, v => c.ShowPlateToolbar = v));
         }
 
         DrawLibrary();
