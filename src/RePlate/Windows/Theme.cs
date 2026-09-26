@@ -124,6 +124,13 @@ internal static class Theme
         return ImGuiComponents.IconButtonWithText(icon, text);
     }
 
+    /// <summary>The same with only the icon.</summary>
+    public static bool AccentIconButton(string id, FontAwesomeIcon icon)
+    {
+        using var colors = Filled(Accent, OnAccent, true);
+        return ImGuiComponents.IconButton(id, icon);
+    }
+
     /// <summary>For removing things: red with the theme, red text without.</summary>
     public static bool DangerButton(string label)
     {
