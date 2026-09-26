@@ -11,7 +11,7 @@ just a change of mind.
 
 - Save everything in one click: Grab the full look (pose, expression, lighting, background, frames, accents, and base layout) without manually writing down settings.
 - Smarter restoring: RePlate opens the in-game editor, dials in your saved setup, and pauses so you can double-check the final result before saving. It skips parts that already match, calls out anything you haven't unlocked yet, and can even hit Save automatically if you turn that setting on.
-- Gear set gallery: Store your favorite looks in a central gallery and apply one portrait across multiple jobs. If a job can't wear or use a specific item, it simply keeps what you already had on.
+- Gear set gallery: Store your favorite looks in a central gallery and apply one portrait across multiple jobs. If a job can't use a pose or anything else in it, that gear set keeps what it already had.
 - Test before committing: Drop a saved preset directly into Edit Portrait or Edit Plate Design to tweak the details by hand before saving.
 - Easy sharing: Swap plates using simple text codes. If someone shares a preset with items you don't own yet, your current style stays untouched, and the import stops right before saving so you can review it first.
 - HaselTweaks support: Copy or import HaselTweaks codes, and migrate your entire existing library from Portrait Helper (preview images included). (Thanks mate.)
