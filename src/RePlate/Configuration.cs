@@ -27,6 +27,9 @@ public sealed class Configuration : IPluginConfiguration
     public bool ShowPlateToolbar { get; set; } = true;
 
     public bool UseTheme { get; set; } = true;
+
+    /// <summary>With the theme on, look like the game's own windows instead of RePlate's.</summary>
+    public bool GameStyle { get; set; }
     public AccentChoice Accent { get; set; } = AccentChoice.GilGold;
 
     /// <summary>0xRRGGBB, used when <see cref="Accent"/> is Custom.</summary>

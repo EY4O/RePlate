@@ -58,18 +58,28 @@ public sealed class SettingsWindow : ThemedWindow
         {
             if (grid.Success)
             {
-                changed |= Row("Use the RePlate theme",
-                    "Dark panels, rounded corners and one accent colour. Off gives RePlate's windows Dalamud's own style.",
-                    () => Checkbox("##theme", c.UseTheme, v => c.UseTheme = v));
-                changed |= Row("Accent colour", "The colour of main buttons, checkmarks and the selected tab.", () =>
+                changed |= Row("Window style",
+                    "RePlate: dark panels, rounded corners and one accent colour. Game: like the game's own windows, in " +
+                    "its own font. Dalamud: Dalamud's usual style.", () =>
                 {
-                    var names = Theme.Accents.Select(a => a.Name).ToArray();
-                    var index = Math.Max(0, Array.FindIndex(Theme.Accents, a => a.Choice == c.Accent));
-                    if (!ImGui.Combo("##accent", ref index, names)) return false;
-                    c.Accent = Theme.Accents[index].Choice;
+                    string[] styles = ["RePlate", "Game", "Dalamud"];
+                    var index = !c.UseTheme ? 2 : c.GameStyle ? 1 : 0;
+                    if (!ImGui.Combo("##style", ref index, styles)) return false;
+                    c.UseTheme = index != 2;
+                    c.GameStyle = index == 1;
                     return true;
                 });
-                if (c.Accent == AccentChoice.Custom)
+                // The game style keeps the game's own gold, so the accent is RePlate's style only.
+                if (c.UseTheme && !c.GameStyle)
+                    changed |= Row("Accent colour", "The colour of main buttons, checkmarks and the selected tab.", () =>
+                    {
+                        var names = Theme.Accents.Select(a => a.Name).ToArray();
+                        var index = Math.Max(0, Array.FindIndex(Theme.Accents, a => a.Choice == c.Accent));
+                        if (!ImGui.Combo("##accent", ref index, names)) return false;
+                        c.Accent = Theme.Accents[index].Choice;
+                        return true;
+                    });
+                if (c.UseTheme && !c.GameStyle && c.Accent == AccentChoice.Custom)
                     changed |= Row("Custom colour", "Text on it turns dark or light by itself so it stays readable.", () =>
                     {
                         var rgb = Theme.Rgb(c.CustomAccent);

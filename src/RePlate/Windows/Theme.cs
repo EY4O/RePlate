@@ -5,6 +5,8 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Components;
+using Dalamud.Interface.GameFonts;
+using Dalamud.Interface.ManagedFontAtlas;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
@@ -15,15 +17,32 @@ public enum AccentChoice { GilGold, Rose, AetherBlue, Jade, MoogleViolet, Custom
 
 public enum Tone { Neutral, Accent, Good, Warning, Bad, Info }
 
-/// <summary>Dark panels, rounded frames and an accent colour, applied to RePlate's own windows only.</summary>
+/// <summary>
+/// RePlate's look, applied to its own windows only: its own dark panels with an accent colour, or the game's style,
+/// with the game's own font, warm charcoal panels, bronze borders and gold highlights.
+/// </summary>
 internal static class Theme
 {
     private const uint DefaultAccent = 0xE0A63A;
+    private const uint GameGold = 0xD6B26E;
     private static Configuration? config;
+    private static IFontHandle? gameFont;
 
     public static void Use(Configuration configuration) => config = configuration;
 
+    /// <summary>The game's UI font, loaded once for the game style.</summary>
+    public static void LoadFonts(IFontAtlas atlas) => gameFont = atlas.NewGameFontHandle(new GameFontStyle(GameFontFamilyAndSize.Axis12));
+
+    public static void UnloadFonts()
+    {
+        gameFont?.Dispose();
+        gameFont = null;
+    }
+
     public static bool On => config?.UseTheme ?? false;
+
+    /// <summary>The theme is on and made to look like the game's own windows.</summary>
+    public static bool Game => On && config!.GameStyle;
 
     public static readonly (AccentChoice Choice, string Name, uint Rgb)[] Accents =
     [
@@ -38,13 +57,34 @@ internal static class Theme
     public static Vector4 Accent => config switch
     {
         null => Rgb(DefaultAccent),
+        _ when Game => Rgb(GameGold),
         { Accent: AccentChoice.Custom } c => Rgb(c.CustomAccent),
         var c => Rgb(Accents.FirstOrDefault(a => a.Choice == c.Accent).Rgb is var rgb and not 0 ? rgb : DefaultAccent),
     };
 
-    private static readonly Vector4 Background = Rgb(0x15161B, 0.98f), Surface = Rgb(0x1D1E25), Frame = Rgb(0x24252D),
-        FrameHover = Rgb(0x2E2F39), FramePress = Rgb(0x383A45), Line = Rgb(0x2C2D36), ButtonFill = Rgb(0x2A2B34),
-        ButtonHover = Rgb(0x353642), ButtonPress = Rgb(0x404150), DangerFill = Rgb(0xC9433F), White = new(1, 1, 1, 1);
+    private sealed record Palette(Vector4 Background, Vector4 Surface, Vector4 Frame, Vector4 FrameHover, Vector4 FramePress,
+        Vector4 Line, Vector4 ButtonFill, Vector4 ButtonHover, Vector4 ButtonPress);
+
+    private static readonly Palette Own = new(Rgb(0x15161B, 0.98f), Rgb(0x1D1E25), Rgb(0x24252D), Rgb(0x2E2F39), Rgb(0x383A45),
+        Rgb(0x2C2D36), Rgb(0x2A2B34), Rgb(0x353642), Rgb(0x404150));
+
+    // Warm charcoal like the game's dark windows, with bronze edges.
+    private static readonly Palette GameLook = new(Rgb(0x1B1A18, 0.95f), Rgb(0x25231F), Rgb(0x2E2B27), Rgb(0x3A3630), Rgb(0x46403A),
+        Rgb(0x6B5C45), Rgb(0x34302B), Rgb(0x4A4237), Rgb(0x5A4F40));
+
+    private static readonly Vector4 GameText = Rgb(0xEEE7D8), GameTextDim = Rgb(0xA79E8E);
+    private static readonly Vector4 DangerFill = Rgb(0xC9433F), White = new(1, 1, 1, 1);
+
+    private static Palette Look => Game ? GameLook : Own;
+    private static Vector4 Background => Look.Background;
+    private static Vector4 Surface => Look.Surface;
+    private static Vector4 Frame => Look.Frame;
+    private static Vector4 FrameHover => Look.FrameHover;
+    private static Vector4 FramePress => Look.FramePress;
+    private static Vector4 Line => Look.Line;
+    private static Vector4 ButtonFill => Look.ButtonFill;
+    private static Vector4 ButtonHover => Look.ButtonHover;
+    private static Vector4 ButtonPress => Look.ButtonPress;
 
     public static Vector4 Color(Tone tone) => tone switch
     {
@@ -53,7 +93,7 @@ internal static class Theme
         Tone.Warning => On ? Rgb(0xF0C36B) : ImGuiColors.DalamudYellow,
         Tone.Bad => On ? Rgb(0xE5605C) : ImGuiColors.DalamudRed,
         Tone.Info => On ? Rgb(0x7FB7E8) : ImGuiColors.ParsedBlue,
-        _ => On ? Rgb(0x9A9BA3) : ImGuiColors.DalamudGrey,
+        _ => Game ? GameTextDim : On ? Rgb(0x9A9BA3) : ImGuiColors.DalamudGrey,
     };
 
     public static Vector4 AccentText => Color(Tone.Accent);
@@ -62,7 +102,7 @@ internal static class Theme
     public static Vector4 Bad => Color(Tone.Bad);
     public static Vector4 Muted => Color(Tone.Neutral);
 
-    public readonly record struct Pushed(int Colors, int Vars);
+    public readonly record struct Pushed(int Colors, int Vars, IDisposable? Font = null);
 
     public static Pushed Push()
     {
@@ -91,21 +131,31 @@ internal static class Theme
             (ImGuiCol.TableRowBg, new(0, 0, 0, 0)), (ImGuiCol.TableRowBgAlt, new(1, 1, 1, 0.025f)),
             (ImGuiCol.TextSelectedBg, accent with { W = 0.35f }), (ImGuiCol.NavHighlight, accent),
         ];
-        foreach (var (column, value) in colors) ImGui.PushStyleColor(column, value);
+        // The game style also has the game's warm text.
+        (ImGuiCol, Vector4)[] text = Game ? [(ImGuiCol.Text, GameText), (ImGuiCol.TextDisabled, GameTextDim)] : [];
+        foreach (var (column, value) in colors.Concat(text)) ImGui.PushStyleColor(column, value);
         var scale = ImGuiHelpers.GlobalScale;
-        (ImGuiStyleVar, float)[] vars =
-        [
-            (ImGuiStyleVar.WindowRounding, 8 * scale), (ImGuiStyleVar.ChildRounding, 6 * scale),
-            (ImGuiStyleVar.FrameRounding, 5 * scale), (ImGuiStyleVar.PopupRounding, 6 * scale),
-            (ImGuiStyleVar.ScrollbarRounding, 8 * scale), (ImGuiStyleVar.GrabRounding, 4 * scale),
-            (ImGuiStyleVar.TabRounding, 5 * scale), (ImGuiStyleVar.FrameBorderSize, 0),
-        ];
+        // The game's windows have thin edges and pill-shaped buttons.
+        (ImGuiStyleVar, float)[] vars = Game
+            ? [
+                (ImGuiStyleVar.WindowRounding, 6 * scale), (ImGuiStyleVar.ChildRounding, 4 * scale),
+                (ImGuiStyleVar.FrameRounding, 12 * scale), (ImGuiStyleVar.PopupRounding, 6 * scale),
+                (ImGuiStyleVar.ScrollbarRounding, 8 * scale), (ImGuiStyleVar.GrabRounding, 10 * scale),
+                (ImGuiStyleVar.TabRounding, 5 * scale), (ImGuiStyleVar.FrameBorderSize, 1), (ImGuiStyleVar.WindowBorderSize, 1),
+            ]
+            : [
+                (ImGuiStyleVar.WindowRounding, 8 * scale), (ImGuiStyleVar.ChildRounding, 6 * scale),
+                (ImGuiStyleVar.FrameRounding, 5 * scale), (ImGuiStyleVar.PopupRounding, 6 * scale),
+                (ImGuiStyleVar.ScrollbarRounding, 8 * scale), (ImGuiStyleVar.GrabRounding, 4 * scale),
+                (ImGuiStyleVar.TabRounding, 5 * scale), (ImGuiStyleVar.FrameBorderSize, 0),
+            ];
         foreach (var (variable, value) in vars) ImGui.PushStyleVar(variable, value);
-        return new(colors.Length, vars.Length);
+        return new(colors.Length + text.Length, vars.Length, Game ? gameFont?.Push() : null);
     }
 
     public static void Pop(Pushed pushed)
     {
+        pushed.Font?.Dispose();
         if (pushed.Vars > 0) ImGui.PopStyleVar(pushed.Vars);
         if (pushed.Colors > 0) ImGui.PopStyleColor(pushed.Colors);
     }
@@ -180,7 +230,8 @@ internal static class Theme
     public static void Section(string title)
     {
         ImGui.Spacing();
-        using (ImRaii.PushColor(ImGuiCol.Text, Muted, On)) ImGui.TextUnformatted(On ? title.ToUpperInvariant() : title);
+        // The game titles its sections in gold; the RePlate look uses small capitals.
+        using (ImRaii.PushColor(ImGuiCol.Text, Game ? Accent : Muted, On)) ImGui.TextUnformatted(On && !Game ? title.ToUpperInvariant() : title);
         ImGui.Separator();
     }
 

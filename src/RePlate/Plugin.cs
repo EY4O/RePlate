@@ -44,6 +44,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         Theme.Use(Configuration);
+        Theme.LoadFonts(PluginInterface.UiBuilder.FontAtlas);
 
         var folder = PluginInterface.GetPluginConfigDirectory();
         Store = new PresetStore(Path.Combine(folder, "plates.json"));
@@ -205,6 +206,7 @@ public sealed class Plugin : IDalamudPlugin
         images.Dispose();
         portraitImages.Dispose();
         thumbnails.Dispose();
+        Theme.UnloadFonts();
         if (dirtySince != null) Configuration.Save();
     }
 }
