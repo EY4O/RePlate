@@ -59,10 +59,10 @@ public sealed class SettingsWindow : ThemedWindow
             if (grid.Success)
             {
                 changed |= Row("Window style",
-                    "RePlate: dark panels, rounded corners and one accent colour. Game: like the game's own windows, in " +
-                    "its own font. Dalamud: Dalamud's usual style.", () =>
+                    "RePlate: dark panels, rounded corners and one accent colour. Dark: like the game's own windows in its " +
+                    "dark theme, in its own fonts. Dalamud: Dalamud's usual style.", () =>
                 {
-                    string[] styles = ["RePlate", "Game", "Dalamud"];
+                    string[] styles = ["RePlate", "Dark", "Dalamud"];
                     var index = !c.UseTheme ? 2 : c.GameStyle ? 1 : 0;
                     if (!ImGui.Combo("##style", ref index, styles)) return false;
                     c.UseTheme = index != 2;
