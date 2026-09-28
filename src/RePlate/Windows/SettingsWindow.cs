@@ -31,7 +31,7 @@ public sealed class SettingsWindow : ThemedWindow
         SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(420, 300), MaximumSize = new Vector2(900, 1000) };
     }
 
-    public override void Draw()
+    protected override void DrawContents()
     {
         var c = plugin.Configuration;
         var changed = false;

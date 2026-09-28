@@ -29,8 +29,10 @@ public sealed class PlateToolbar(Plugin plugin)
         {
             if (ImGui.Begin("###RePlatePlateToolbar", Flags))
             {
+                var inside = Theme.PushContents();
                 if (Theme.AccentIconButton("##openRePlate", FontAwesomeIcon.IdCard)) plugin.ShowPlates();
                 Ui.Tip("RePlate");
+                Theme.Pop(inside);
             }
             ImGui.End();
         }

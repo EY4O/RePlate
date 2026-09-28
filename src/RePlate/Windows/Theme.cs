@@ -19,7 +19,7 @@ public enum Tone { Neutral, Accent, Good, Warning, Bad, Info }
 
 /// <summary>
 /// RePlate's look, applied to its own windows only: its own dark panels with an accent colour, or the game's style,
-/// with the game's own font, warm charcoal panels, bronze borders and gold highlights.
+/// with the game's own fonts, dark grey panels, grey pill buttons and a gold window frame.
 /// </summary>
 internal static class Theme
 {
@@ -27,16 +27,22 @@ internal static class Theme
     private const uint GameGold = 0xD6B26E;
     private static Configuration? config;
     private static IFontHandle? gameFont;
+    private static IFontHandle? titleFont;
 
     public static void Use(Configuration configuration) => config = configuration;
 
-    /// <summary>The game's UI font, loaded once for the game style.</summary>
-    public static void LoadFonts(IFontAtlas atlas) => gameFont = atlas.NewGameFontHandle(new GameFontStyle(GameFontFamilyAndSize.Axis12));
+    /// <summary>The game's text and window title fonts, loaded once for the game style.</summary>
+    public static void LoadFonts(IFontAtlas atlas)
+    {
+        gameFont = atlas.NewGameFontHandle(new GameFontStyle(GameFontFamilyAndSize.Axis12));
+        titleFont = atlas.NewGameFontHandle(new GameFontStyle(GameFontFamilyAndSize.TrumpGothic184));
+    }
 
     public static void UnloadFonts()
     {
         gameFont?.Dispose();
-        gameFont = null;
+        titleFont?.Dispose();
+        gameFont = titleFont = null;
     }
 
     public static bool On => config?.UseTheme ?? false;
@@ -68,11 +74,11 @@ internal static class Theme
     private static readonly Palette Own = new(Rgb(0x15161B, 0.98f), Rgb(0x1D1E25), Rgb(0x24252D), Rgb(0x2E2F39), Rgb(0x383A45),
         Rgb(0x2C2D36), Rgb(0x2A2B34), Rgb(0x353642), Rgb(0x404150));
 
-    // Warm charcoal like the game's dark windows, with bronze edges.
-    private static readonly Palette GameLook = new(Rgb(0x1B1A18, 0.95f), Rgb(0x25231F), Rgb(0x2E2B27), Rgb(0x3A3630), Rgb(0x46403A),
-        Rgb(0x6B5C45), Rgb(0x34302B), Rgb(0x4A4237), Rgb(0x5A4F40));
+    // The game's dark theme: neutral grey panels, grey pill buttons with grey edges, and a gold frame round the window.
+    private static readonly Palette GameLook = new(Rgb(0x2A2A2A, 0.95f), Rgb(0x222222), Rgb(0x1E1E1E), Rgb(0x2A2A2A), Rgb(0x343434),
+        Rgb(0x5C5C5C), Rgb(0x3A3A3A), Rgb(0x484848), Rgb(0x2E2E2E));
 
-    private static readonly Vector4 GameText = Rgb(0xEEE7D8), GameTextDim = Rgb(0xA79E8E);
+    private static readonly Vector4 GameText = Rgb(0xEEEEEE), GameTextDim = Rgb(0x9C9C9C), GameFrameGold = Rgb(0xB89B65);
     private static readonly Vector4 DangerFill = Rgb(0xC9433F), White = new(1, 1, 1, 1);
 
     private static Palette Look => Game ? GameLook : Own;
@@ -131,17 +137,20 @@ internal static class Theme
             (ImGuiCol.TableRowBg, new(0, 0, 0, 0)), (ImGuiCol.TableRowBgAlt, new(1, 1, 1, 0.025f)),
             (ImGuiCol.TextSelectedBg, accent with { W = 0.35f }), (ImGuiCol.NavHighlight, accent),
         ];
-        // The game style also has the game's warm text.
-        (ImGuiCol, Vector4)[] text = Game ? [(ImGuiCol.Text, GameText), (ImGuiCol.TextDisabled, GameTextDim)] : [];
+        // The game style also has the game's text colours, and a gold frame round the window; what's inside the window
+        // gets grey edges from PushContents.
+        (ImGuiCol, Vector4)[] text = Game
+            ? [(ImGuiCol.Text, GameText), (ImGuiCol.TextDisabled, GameTextDim), (ImGuiCol.Border, GameFrameGold)]
+            : [];
         foreach (var (column, value) in colors.Concat(text)) ImGui.PushStyleColor(column, value);
         var scale = ImGuiHelpers.GlobalScale;
         // The game's windows have thin edges and pill-shaped buttons.
         (ImGuiStyleVar, float)[] vars = Game
             ? [
-                (ImGuiStyleVar.WindowRounding, 6 * scale), (ImGuiStyleVar.ChildRounding, 4 * scale),
+                (ImGuiStyleVar.WindowRounding, 8 * scale), (ImGuiStyleVar.ChildRounding, 4 * scale),
                 (ImGuiStyleVar.FrameRounding, 12 * scale), (ImGuiStyleVar.PopupRounding, 6 * scale),
                 (ImGuiStyleVar.ScrollbarRounding, 8 * scale), (ImGuiStyleVar.GrabRounding, 10 * scale),
-                (ImGuiStyleVar.TabRounding, 5 * scale), (ImGuiStyleVar.FrameBorderSize, 1), (ImGuiStyleVar.WindowBorderSize, 1),
+                (ImGuiStyleVar.TabRounding, 5 * scale), (ImGuiStyleVar.FrameBorderSize, 1), (ImGuiStyleVar.WindowBorderSize, 2),
             ]
             : [
                 (ImGuiStyleVar.WindowRounding, 8 * scale), (ImGuiStyleVar.ChildRounding, 6 * scale),
@@ -150,7 +159,16 @@ internal static class Theme
                 (ImGuiStyleVar.TabRounding, 5 * scale), (ImGuiStyleVar.FrameBorderSize, 0),
             ];
         foreach (var (variable, value) in vars) ImGui.PushStyleVar(variable, value);
-        return new(colors.Length + text.Length, vars.Length, Game ? gameFont?.Push() : null);
+        // The title bar is drawn in the font pushed here, so it gets the game's title font; the contents get the text font.
+        return new(colors.Length + text.Length, vars.Length, Game ? titleFont?.Push() : null);
+    }
+
+    /// <summary>For inside a window: the game style's text font, and grey edges on everything but the window's frame.</summary>
+    public static Pushed PushContents()
+    {
+        if (!Game) return default;
+        ImGui.PushStyleColor(ImGuiCol.Border, Line);
+        return new(1, 0, gameFont?.Push());
     }
 
     public static void Pop(Pushed pushed)
@@ -163,21 +181,25 @@ internal static class Theme
     /// <summary>The main button on a screen, filled with the accent. A plain button with the theme off.</summary>
     public static bool PrimaryButton(string label, Vector2 size = default)
     {
-        using var colors = Filled(Accent, OnAccent, On);
+        // The game's buttons are all grey, so here the main one only gets a gold edge.
+        using var edge = ImRaii.PushColor(ImGuiCol.Border, Accent, Game);
+        using var colors = Filled(Accent, OnAccent, On && !Game);
         return ImGui.Button(label, size);
     }
 
     /// <summary>Filled with the accent even with the theme off, for the one button that should always stand out.</summary>
     public static bool AccentIconButton(FontAwesomeIcon icon, string text)
     {
-        using var colors = Filled(Accent, OnAccent, true);
+        using var edge = ImRaii.PushColor(ImGuiCol.Border, Accent, Game);
+        using var colors = Filled(Accent, OnAccent, !Game);
         return ImGuiComponents.IconButtonWithText(icon, text);
     }
 
     /// <summary>The same with only the icon.</summary>
     public static bool AccentIconButton(string id, FontAwesomeIcon icon)
     {
-        using var colors = Filled(Accent, OnAccent, true);
+        using var edge = ImRaii.PushColor(ImGuiCol.Border, Accent, Game);
+        using var colors = Filled(Accent, OnAccent, !Game);
         return ImGuiComponents.IconButton(id, icon);
     }
 
@@ -230,8 +252,8 @@ internal static class Theme
     public static void Section(string title)
     {
         ImGui.Spacing();
-        // The game titles its sections in gold; the RePlate look uses small capitals.
-        using (ImRaii.PushColor(ImGuiCol.Text, Game ? Accent : Muted, On)) ImGui.TextUnformatted(On && !Game ? title.ToUpperInvariant() : title);
+        // The game titles its sections in plain light text; the RePlate look uses small capitals.
+        using (ImRaii.PushColor(ImGuiCol.Text, Muted, On && !Game)) ImGui.TextUnformatted(On && !Game ? title.ToUpperInvariant() : title);
         ImGui.Separator();
     }
 
@@ -254,6 +276,22 @@ public abstract class ThemedWindow(string name, ImGuiWindowFlags flags = ImGuiWi
     private Theme.Pushed pushed;
 
     public override void PreDraw() => pushed = Theme.Push();
+
+    public sealed override void Draw()
+    {
+        var inside = Theme.PushContents();
+        try
+        {
+            DrawContents();
+        }
+        finally
+        {
+            Theme.Pop(inside);
+        }
+    }
+
+    /// <summary>The window's contents, drawn in the theme's text font.</summary>
+    protected abstract void DrawContents();
 
     public override void PostDraw()
     {

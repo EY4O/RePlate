@@ -29,7 +29,7 @@ public sealed class WelcomeWindow : ThemedWindow
         plugin.MarkDirty();
     }
 
-    public override void Draw()
+    protected override void DrawContents()
     {
         ImGuiHelpers.ScaledDummy(8);
         Ui.Logo(96);

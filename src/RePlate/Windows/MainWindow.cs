@@ -47,7 +47,7 @@ public sealed class MainWindow : ThemedWindow
         IsOpen = true;
     }
 
-    public override void Draw()
+    protected override void DrawContents()
     {
         using var tabs = ImRaii.TabBar("##tabs");
         if (tabs.Success) DrawTabs();
