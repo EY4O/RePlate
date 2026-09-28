@@ -12,9 +12,10 @@ public enum PlatePart { Portrait, Design }
 /// Restores a saved portrait or design the way you would by hand: open your plate, pick the editor from its edit
 /// menu, put the saved choices in and check them. By default it stops there for you to look it over and press Save;
 /// with that setting off it presses Save itself and checks what the plate kept. Anything unexpected stops it, with
-/// the editor left open for you. Start and Update run on the framework thread.
+/// the editor left open for you. Before it changes anything it keeps what the plate had, so the restore can be undone.
+/// Start and Update run on the framework thread.
 /// </summary>
-public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor designs, Func<bool> pauseBeforeSave)
+public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor designs, PresetStore store, Func<bool> pauseBeforeSave)
 {
     private enum Step { OpenPlate, OpenEditor, WaitEditor, Apply, Check, Save, WaitSaved, Close, WaitClose, Confirm }
 
@@ -41,6 +42,7 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
     private PlatePart part;
     private Step step;
     private bool asked;
+    private bool undoTaken;
     private bool reapplied;
     private string mismatch = "";
     private DateTime stepStarted;
@@ -86,6 +88,7 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
 
         this.preset = preset;
         this.owner = owner;
+        undoTaken = false;
         finished = null;
         done.Clear();
         matched.Clear();
@@ -97,6 +100,9 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
     }
 
     public void Stop(string message) => Finish(new ApplyResult(false, message));
+
+    /// <summary>True while part of this preset waits in an editor for the player to save, so the next Restore goes on with it.</summary>
+    public bool AwaitingReview(Guid presetId) => reviewed.Keys.Any(k => k.Item1 == presetId);
 
     public void Update()
     {
@@ -158,6 +164,7 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
     {
         if (PlateReader.GetOwnCard(owner, out _) == null)
         {
+            TakeUndo();
             Go(Step.OpenEditor);
             return;
         }
@@ -176,6 +183,26 @@ public sealed unsafe class PlateRestore(PortraitEditor portraits, DesignEditor d
             }
             asked = true;
         }
+    }
+
+    // What the plate has now, kept before anything changes so the restore can be undone. A restore that picks up where
+    // a paused one left off keeps the first one's, so undo still goes back to the plate from before either.
+    private void TakeUndo()
+    {
+        if (undoTaken) return;
+        undoTaken = true;
+        if (reviewed.Keys.Any(k => k.Item1 == preset!.Id)) return;
+        var body = Plugin.PlayerState;
+        var capture = new PlateReader().Capture(owner, body.Race.RowId, body.Tribe.RowId, (byte)body.Sex);
+        if (capture.Preset is not { } before)
+        {
+            Plugin.Log.Information($"Nothing to undo to for this restore: {capture.Message}");
+            return;
+        }
+        // Undoing is a restore too, so what it replaces becomes the new undo, and pressing it again redoes.
+        before.Name = store.UndoFor(owner)?.Id == preset!.Id ? "your plate before the undo" : $"your plate before \"{preset.Name}\"";
+        store.SetUndo(before);
+        store.Save();
     }
 
     // The plate's edit menu lists Edit Portrait first and Edit Plate Design second.

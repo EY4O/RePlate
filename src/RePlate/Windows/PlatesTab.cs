@@ -32,6 +32,7 @@ public sealed class PlatesTab
     private string newName = "";
     private string filter = "";
     private string status = "";
+    private PlatePreset? undoing;
     private bool statusWarning;
     private Guid selected;
 
@@ -114,12 +115,34 @@ public sealed class PlatesTab
         ImGui.SameLine();
         if (ImGui.Button("Import")) import.Open();
         Ui.Tip("Add a plate someone shared with you, from its share code.");
+        ImGui.SameLine();
+        DrawUndo();
         if (status.Length > 0)
         {
             ImGui.SameLine();
             if (statusWarning) ImGui.TextColored(Theme.Warning, status);
             else ImGui.TextDisabled(status);
         }
+    }
+
+    // Undoing is a restore of the plate kept from before the last one. Starting it keeps the plate it replaces as the
+    // next undo, so while the undo waits for the player to save a part, the button carries on with the same one.
+    private void DrawUndo()
+    {
+        var owner = plugin.CharacterId;
+        if (undoing != null && (undoing.Owner != owner || !plugin.Restore.AwaitingReview(undoing.Id))) undoing = null;
+        var undo = undoing ?? plugin.Store.UndoFor(owner);
+        using (ImRaii.Disabled(undo == null || Busy))
+        {
+            if (ImGui.Button(undoing != null ? "Continue undo" : "Undo last restore") && undo != null)
+            {
+                undoing = undo;
+                StartRun(() => plugin.Restore.Start(undo, owner), "Undoing...");
+            }
+        }
+        Ui.TipAlways(undo == null ? "After a restore, this puts back the plate you had before it."
+            : undoing != null ? $"Goes on putting back {undo.Name}."
+            : $"Puts back {undo.Name}, from {Ui.Ago(undo.CreatedAt)}. It restores like any plate, so pressing it again redoes.");
     }
 
     private void SetStatus(string text, bool warning = false)

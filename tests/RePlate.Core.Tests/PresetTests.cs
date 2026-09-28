@@ -121,4 +121,49 @@ public class PresetTests : IDisposable
         Assert.NotNull(store.Error);
         Assert.Equal("{ broken", File.ReadAllText(path));
     }
+
+    [Fact]
+    public void EachCharacterKeepsOneUndoAcrossAReload()
+    {
+        var store = new PresetStore(path);
+        store.Add(Preset(1, "Raid night", DateTimeOffset.UnixEpoch));
+        store.SetUndo(Preset(1, "Before raid night", DateTimeOffset.UnixEpoch));
+        store.SetUndo(Preset(1, "Before casual", DateTimeOffset.UnixEpoch));
+        store.SetUndo(Preset(2, "The alt's", DateTimeOffset.UnixEpoch));
+        store.Save();
+
+        var loaded = new PresetStore(path);
+        Assert.Equal("Before casual", loaded.UndoFor(1)?.Name);
+        Assert.Equal("The alt's", loaded.UndoFor(2)?.Name);
+        Assert.Null(loaded.UndoFor(3));
+        Assert.Single(loaded.For(1));
+    }
+
+    [Fact]
+    public void BackupsLeaveTheUndoOut()
+    {
+        var store = new PresetStore(path);
+        var plate = Preset(1, "Raid night", DateTimeOffset.UnixEpoch);
+        store.Add(plate);
+        store.SetUndo(Preset(1, "Before raid night", DateTimeOffset.UnixEpoch));
+
+        var backup = PresetStore.Write(store.All());
+
+        Assert.DoesNotContain("Undo", backup);
+        Assert.Equal(plate.Id, Assert.Single(PresetStore.Read(backup)).Id);
+    }
+
+    [Fact]
+    public void LibrariesFromBeforeUndoStillLoad()
+    {
+        var store = new PresetStore(path);
+        store.Add(Preset(1, "Raid night", DateTimeOffset.UnixEpoch));
+        store.Save();
+        Assert.DoesNotContain("Undo", File.ReadAllText(path));
+
+        var loaded = new PresetStore(path);
+        Assert.True(loaded.CanWrite);
+        Assert.Null(loaded.UndoFor(1));
+        Assert.Single(loaded.For(1));
+    }
 }

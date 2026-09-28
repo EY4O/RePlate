@@ -51,7 +51,7 @@ public sealed class Plugin : IDalamudPlugin
         Reader = new PlateReader();
         Editor = new PortraitEditor();
         Designs = new DesignEditor();
-        Restore = new PlateRestore(Editor, Designs, () => Configuration.PauseBeforeSave);
+        Restore = new PlateRestore(Editor, Designs, Store, () => Configuration.PauseBeforeSave);
         GearsetRun = new GearsetRun(Editor);
         Guide = new Guide(this, Tour.Plates);
         PortraitGuide = new Guide(this, Tour.Portraits);
