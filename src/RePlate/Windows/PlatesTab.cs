@@ -134,7 +134,10 @@ public sealed class PlatesTab
         var undo = undoing ?? plugin.Store.UndoFor(owner);
         using (ImRaii.Disabled(undo == null || Busy))
         {
-            if (ImGui.Button(undoing != null ? "Continue undo" : "Undo last restore") && undo != null)
+            // Accented only when there's a restore to go back to.
+            var label = undoing != null ? "Continue undo" : "Undo";
+            var pressed = undo != null ? Theme.PrimaryButton(label) : ImGui.Button(label);
+            if (pressed && undo != null)
             {
                 undoing = undo;
                 StartRun(() => plugin.Restore.Start(undo, owner), "Undoing...");
