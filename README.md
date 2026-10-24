@@ -31,7 +31,7 @@ just a change of mind.
 2. Under **Experimental > Custom Plugin Repositories**, add this URL and save:
 
    ```text
-   https://ey4o.github.io/XIV-Plugins/repo.json
+   https://xiv.eternalpose.io/repo.json
    ```
 
 3. Open `/xlplugins`, then find and install **RePlate**.

@@ -8,7 +8,7 @@
     <Description>Save your adventurer plate and your gear sets' portraits, and put them back whenever you like. Share them as codes, too.</Description>
     <Tags>adventurer plate;portrait;gear set;preset</Tags>
     <RepoUrl>https://github.com/EY4O/RePlate</RepoUrl>
-    <IconUrl>https://ey4o.github.io/XIV-Plugins/assets/replate-icon.png</IconUrl>
+    <IconUrl>https://xiv.eternalpose.io/assets/replate-icon.png</IconUrl>
     <AcceptsFeedback>false</AcceptsFeedback>
   </PropertyGroup>
 

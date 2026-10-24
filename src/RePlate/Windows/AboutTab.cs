@@ -9,7 +9,7 @@ namespace RePlate.Windows;
 
 public sealed class AboutTab(Plugin plugin)
 {
-    private const string SiteUrl = "https://ey4o.github.io/XIV-Plugins/";
+    private const string SiteUrl = "https://xiv.eternalpose.io/";
     private const string SourceUrl = "https://github.com/EY4O/RePlate";
     private const string PatreonUrl = "https://www.patreon.com/Looneth";
     private const string KoFiUrl = "https://ko-fi.com/looneth";
