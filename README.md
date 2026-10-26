@@ -45,6 +45,12 @@ just a change of mind.
 | `/replate welcome` | Open the welcome guide |
 | `/replate stop` | Stop a restore |
 
+## Support
+
+If RePlate saves a portrait you'd have lost, you can support its development on Ko-fi:
+
+[![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/looneth)
+
 ## Licence
 
 [MIT](LICENSE).
